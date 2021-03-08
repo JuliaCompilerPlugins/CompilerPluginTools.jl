@@ -5,7 +5,7 @@
 [![Build Status](https://github.com/Roger-luo/Yuan.jl/workflows/CI/badge.svg)](https://github.com/Roger-luo/Yuan.jl/actions)
 [![Coverage](https://codecov.io/gh/Roger-luo/Yuan.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/Roger-luo/Yuan.jl)
 
-collective programs for Meta programming.
+collective tools for Julia SSA IR.
 
 ## Installation
 
