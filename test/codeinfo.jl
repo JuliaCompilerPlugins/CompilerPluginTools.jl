@@ -1,5 +1,5 @@
 using Test
-using Yuan.SSA
+using Yuan
 
 
 ci = code_lowered(cos, (Float64, ))[1]
@@ -10,3 +10,7 @@ ir
 stmt, type = obtain_const_or_stmt(SSAValue(50), ci)
 @test ci.code[50] == stmt
 @test ci.ssavaluetypes[50] == type
+
+ir.stmts[1]
+
+new = NewCodeInfo(ci, 2)

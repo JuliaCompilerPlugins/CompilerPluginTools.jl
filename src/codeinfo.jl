@@ -8,19 +8,7 @@ is not inferred yet, type will be nothing.
 """
 function obtain_const_or_stmt(@nospecialize(x), ci::CodeInfo)
     if x isa SSAValue
-        stmt = ci.code[x.id]
-        if ci.ssavaluetypes isa Int
-            # CI is not inferenced yet
-            return stmt, nothing
-        else
-            typ = ci.ssavaluetypes[x.id]
-        end
-
-        if typ isa Const
-            return typ.val, typeof(typ.val)
-        else
-            return stmt, widenconst(typ)
-        end
+        return obtain_ssa(x, ci)
     elseif x isa QuoteNode
         return x.value, typeof(x.value)
     elseif x isa Const
@@ -37,6 +25,22 @@ function obtain_const_or_stmt(@nospecialize(x), ci::CodeInfo)
     else
         # special value
         return x, typeof(x)
+    end
+end
+
+function obtain_ssa(x::SSAValue, ci::CodeInfo)
+    stmt = ci.code[x.id]
+    if ci.ssavaluetypes isa Int
+        # CI is not inferenced yet
+        return stmt, nothing
+    else
+        typ = ci.ssavaluetypes[x.id]
+    end
+
+    if typ isa Const
+        return typ.val, typeof(typ.val)
+    else
+        return stmt, widenconst(typ)
     end
 end
 
