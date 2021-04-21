@@ -1,5 +1,5 @@
 using Test
-using Yuan
+using CompilerPluginTools
 using MLStyle
 
 f = @λ begin

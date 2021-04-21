@@ -1,4 +1,4 @@
-using Yuan
+using CompilerPluginTools
 using Test
 
 @testset "patches" begin

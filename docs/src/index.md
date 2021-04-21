@@ -1,12 +1,12 @@
 ```@meta
-CurrentModule = Yuan
+CurrentModule = CompilerPluginTools
 ```
 
-# Yuan
+# CompilerPluginTools
 
 ```@index
 ```
 
 ```@autodocs
-Modules = [Yuan]
+Modules = [CompilerPluginTools]
 ```

@@ -1,11 +1,11 @@
 using Test
-using Yuan
+using CompilerPluginTools
 
 struct TestInterpreter <: JuliaLikeInterpreter
     native_interpreter::NativeInterpreter
 end
 
-function Yuan.optimize(interp::TestInterpreter, ir::IRCode)
+function CompilerPluginTools.optimize(interp::TestInterpreter, ir::IRCode)
     @test true
     return ir
 end
