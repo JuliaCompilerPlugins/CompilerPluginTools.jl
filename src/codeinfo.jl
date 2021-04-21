@@ -54,6 +54,42 @@
 # """
 # obtain_const(@nospecialize(x), ci::CodeInfo) = obtain_const_or_stmt(x, ci)[1]
 
+macro codeinfo(ex)
+    esc(codeinfo_m(ex))
+end
+
+function codeinfo_m(ex)
+    Meta.isexpr(ex, :block) || error("expect a begin ... end")
+    
+    code = Expr(:ref, :Any)
+    ssavaluetypes = Expr(:ref, :Any)
+
+    for each in ex.args
+        @switch each begin
+            @case :($stmt::$type)
+                push!(code.args, stmt)
+                push!(ssavaluetypes.args, type)
+            @case ::LineNumberNode
+                continue
+            @case _
+                push!(code.args, each)
+                push!(ssavaluetypes.args, :Any)
+        end
+    end
+
+    @gensym ci nstmts
+    quote
+        let ci = (Meta.@lower 1 + 1).args[1]
+            ci.code = $code
+            nstmts = length(ci.code)
+            ci.ssavaluetypes = $ssavaluetypes
+            ci.codelocs = fill(Int32(1), nstmts)
+            ci.ssaflags = fill(Int32(0), nstmts)
+            ci
+        end
+    end
+end
+
 @enum OperationType begin
     Insert
     Setindex

@@ -1,6 +1,7 @@
 module CompilerPluginTools
 
 using MLStyle
+using Expronicon
 
 export NewCodeInfo,
     JuliaLikeInterpreter,
@@ -31,7 +32,11 @@ export NewCodeInfo,
     method_instances,
     # builtin pass
     default_julia_pass,
-    no_pass
+    no_pass,
+    # extra pass
+    inline_const!,
+    permute_stmts!,
+    @codeinfo
 
 using Base:
     method_instances
@@ -47,7 +52,9 @@ using Core:
     SlotNumber,
     Argument,
     NewvarNode,
-    ReturnNode
+    ReturnNode,
+    IntrinsicFunction,
+    Builtin
 
 using Core.Compiler:
     MethodInstance,

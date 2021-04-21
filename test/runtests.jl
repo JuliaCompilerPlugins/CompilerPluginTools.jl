@@ -12,3 +12,7 @@ end
 @testset "codeinfo" begin
     include("codeinfo.jl")
 end
+
+@testset "passes" begin
+    include("passes.jl")
+end
