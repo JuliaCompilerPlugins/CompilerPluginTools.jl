@@ -4,4 +4,5 @@
 /Manifest.toml
 /docs/Manifest.toml
 /docs/build/
+/docs/src/assets/indigo.css
 .vscode
