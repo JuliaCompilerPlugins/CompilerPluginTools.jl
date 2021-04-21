@@ -25,13 +25,12 @@ ex = Expr(:(=), SlotNumber(3), :(Base.Math.abs($(SlotNumber(2)))))
 @test f(QuoteNode(2)) == 2
 
 dummy(x) = 2x
-ir, _ = code_ircode(dummy, Tuple{Float64})[1]
-ir[SSAValue(2)]
-ic = IncrementalCompact(ir)
-(_, idx), stmt = first(ic)
-@test idx == 1
-@test stmt.args[1] == GlobalRef(Base, :sitofp)
-@test stmt.args[2] == Float64
-@test stmt.args[3] == 2
 
-@test ic[1].args[1] == GlobalRef(Base, :abs_float)
+@testset "Core bootstrap forward" begin
+    ir, _ = code_ircode(dummy, Tuple{Float64})[1]
+    ir[SSAValue(2)]
+    ic = IncrementalCompact(ir)
+    (_, idx), stmt = first(ic)
+    @test idx == 1
+    ic[1]
+end
