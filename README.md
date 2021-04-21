@@ -1,9 +1,9 @@
 # CompilerPluginTools
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://Roger-luo.github.io/CompilerPluginTools.jl/stable)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://Roger-luo.github.io/CompilerPluginTools.jl/dev)
-[![Build Status](https://github.com/Roger-luo/CompilerPluginTools.jl/workflows/CI/badge.svg)](https://github.com/Roger-luo/CompilerPluginTools.jl/actions)
-[![Coverage](https://codecov.io/gh/Roger-luo/CompilerPluginTools.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/Roger-luo/CompilerPluginTools.jl)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaCompilerPlugins.github.io/CompilerPluginTools.jl/stable)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://JuliaCompilerPlugins.github.io/CompilerPluginTools.jl/dev)
+[![Build Status](https://github.com/JuliaCompilerPlugins/CompilerPluginTools.jl/workflows/CI/badge.svg)](https://github.com/JuliaCompilerPlugins/CompilerPluginTools.jl/actions)
+[![Coverage](https://codecov.io/gh/JuliaCompilerPlugins/CompilerPluginTools.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaCompilerPlugins/CompilerPluginTools.jl)
 
 collective tools for Julia SSA IR.
 
