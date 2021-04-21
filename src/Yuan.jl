@@ -3,6 +3,7 @@ module Yuan
 using MLStyle
 
 export NewCodeInfo,
+    JuliaLikeInterpreter,
     # reexport SSA nodes from Core
     CodeInfo,
     SSAValue,
@@ -16,6 +17,7 @@ export NewCodeInfo,
     NewvarNode,
     ReturnNode,
     # reexport IRCode types from Core
+    NativeInterpreter,
     IRCode,
     IncrementalCompact,
     NewSSAValue,

@@ -1,4 +1,10 @@
 using Yuan
 using Test
 
-include("patches.jl")
+@testset "patches" begin
+    include("patches.jl")    
+end
+
+@testset "interpreter" begin
+    include("interp.jl")    
+end
