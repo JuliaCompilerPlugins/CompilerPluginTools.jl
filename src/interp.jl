@@ -39,7 +39,11 @@ function Core.Compiler.optimize(interp::JuliaLikeInterpreter, opt::OptimizationS
     nargs = Int(opt.nargs) - 1
     ir = Core.Compiler.run_passes(opt.src, nargs, opt)
     ir = optimize(interp, opt, ir)
-    Core.Compiler.finish(opt, params, ir, result)
+    if VERSION < v"1.7-DEV"
+        Core.Compiler.finish(opt, params, ir, result)
+    else
+        Core.Compiler.finish(interp, opt, params, ir, result)
+    end
 end
 
 """
