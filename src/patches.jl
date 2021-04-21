@@ -1,4 +1,12 @@
 # MLStyle patches
+@active GlobalRef(x) begin
+    if x isa GlobalRef
+        (x.mod, x.name)
+    else
+        nothing
+    end
+end
+
 @active Argument(x) begin
     if x isa Argument
         Some(x.n)
@@ -23,6 +31,14 @@ end
     end
 end
 
+@active NewvarNode(x) begin
+    if x isa NewvarNode
+        return x.slot
+    else
+        nothing
+    end
+end
+
 @active NewSSAValue(x) begin
     if x isa NewSSAValue
         Some(x.id)
@@ -42,6 +58,14 @@ end
 @active Const(x) begin
     if x isa Const
         Some(x.val)
+    else
+        nothing
+    end
+end
+
+@active GotoIfNot(x) begin
+    if x isa GotoIfNot
+        x.cond, x.dest
     else
         nothing
     end

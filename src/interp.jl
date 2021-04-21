@@ -33,7 +33,9 @@ Core.Compiler.lock_mi_inference(interp::JuliaLikeInterpreter, mi::Core.MethodIns
     Core.Compiler.lock_mi_inference(interp.native_interpreter, mi)
 Core.Compiler.add_remark!(::JuliaLikeInterpreter, ::Core.Compiler.InferenceState, ::String) =
     nothing # println(msg)
-
+@static if VERSION >= v"1.7.0-DEV.577"
+    Core.Compiler.verbose_stmt_info(::JuliaLikeInterpreter) = false
+end
 
 function Core.Compiler.optimize(interp::JuliaLikeInterpreter, opt::OptimizationState, params::OptimizationParams, @nospecialize(result))
     nargs = Int(opt.nargs) - 1

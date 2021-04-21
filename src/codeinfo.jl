@@ -54,102 +54,220 @@
 # """
 # obtain_const(@nospecialize(x), ci::CodeInfo) = obtain_const_or_stmt(x, ci)[1]
 
-struct NewCodeInfo
+@enum OperationType begin
+    Insert
+    Setindex
+    Push
+    Delete
+end
+
+struct Operation
+    type::OperationType
+    stmt
+end
+
+struct Record
+    operations::Dict{Int, Vector{Operation}} # Insert/Setindex
+end
+
+Record() = Record(Dict{Int, Vector{Operation}}())
+
+Base.getindex(rc::Record, v) = rc.operations[v]
+Base.haskey(rc::Record, v) = haskey(rc.operations, v)
+
+function Base.setindex!(rc::Record, stmt, v)
+    push!(
+        get!(rc.operations, v, Operation[]),
+        Operation(Setindex, stmt)
+    )
+    return stmt
+end
+
+function Base.insert!(rc::Record, v, stmt)
+    push!(
+        get!(rc.operations, v, Operation[]),
+        Operation(Insert, stmt)
+    )
+    return rc
+end
+
+function Base.delete!(rc::Record, v)
+    push!(
+        get!(rc.operations, v, Operation[]),
+        Operation(Delete, nothing)
+    )
+    return rc
+end
+
+mutable struct NewCodeInfo
     src::CodeInfo
-    code::Vector{Any}
-    nvariables::Int
-    codelocs::Vector{Int32}
-    newslots::Dict{Int,Symbol}
-    slotnames::Vector{Symbol}
-    changemap::Vector{Int}
-    slotmap::Vector{Int}
-
-    function NewCodeInfo(ci::CodeInfo, nargs::Int)
-        code = []
-        codelocs = Int32[]
-        newslots = Dict{Int,Symbol}()
-        slotnames = copy(ci.slotnames)
-        changemap = fill(0, length(ci.code))
-        slotmap = fill(0, length(ci.slotnames))
-        new(ci, code, nargs + 1, codelocs, newslots, slotnames, changemap, slotmap)
-    end
+    pc::Int # current SSAValue
+    slots::Record
+    stmts::Record
 end
 
-source_slot(ci::NewCodeInfo, i::Int) = Core.SlotNumber(i + ci.slotmap[i])
-
-function slot(ci::NewCodeInfo, name::Symbol)
-    return Core.SlotNumber(findfirst(isequal(name), ci.slotnames))
+function NewCodeInfo(ci::CodeInfo)
+    NewCodeInfo(ci, 0, Record(), Record())
 end
 
-function insert_slot!(ci::NewCodeInfo, v::Int, slot::Symbol)
-    ci.newslots[v] = slot
-    insert!(ci.slotnames, v, slot)
-    prev = length(filter(x -> x < v, keys(ci.newslots)))
-    for k in v-prev:length(ci.slotmap)
-        ci.slotmap[k] += 1
-    end
+Base.length(ci::NewCodeInfo) = length(ci.src.code)
+Base.getindex(ci::NewCodeInfo, idx::Int) = ci.src.code[idx]
+Base.eltype(::NewCodeInfo) = Tuple{Int, Any}
+
+function Base.iterate(ci::NewCodeInfo, st::Int=1)
+    st > length(ci) && return
+    ci.pc += 1
+    return (st, ci[st]), st + 1
+end
+
+function Base.setindex!(ci::NewCodeInfo, stmt, v::Int)
+    ci.stmts[v] = stmt
+    return stmt
+end
+
+function Base.insert!(ci::NewCodeInfo, v::Int, stmt)
+    insert!(ci.stmts, v, stmt)
+    ci.pc += 1
+    return NewSSAValue(ci.pc-1) # length(code) + 1
+end
+
+function Base.delete!(ci::NewCodeInfo, v::Int)
+    ci.pc -= 1
+    delete!(ci.stmts, v)
     return ci
 end
 
-function push_stmt!(ci::NewCodeInfo, stmt, codeloc::Int32 = Int32(1))
-    push!(ci.code, stmt)
-    push!(ci.codelocs, codeloc)
+function Base.push!(ci::NewCodeInfo, stmt)
+    ci.stmts[ci.pc] = Operation(Push, stmt)
     return ci
 end
 
-function insert_stmt!(ci::NewCodeInfo, v::Int, stmt)
-    push_stmt!(ci, stmt, ci.src.codelocs[v])
-    ci.changemap[v] += 1
-    return NewSSAValue(length(ci.code))
-end
+function emit_slotnames_and_code(ci::NewCodeInfo)
+    changemap = fill(0, length(ci))
+    code, codelocs = [], Int32[]
 
-function update_slots(e, slotmap)
-    if e isa Core.SlotNumber
-        return Core.SlotNumber(e.id + slotmap[e.id])
-    elseif e isa Expr
-        return Expr(e.head, map(x -> update_slots(x, slotmap), e.args)...)
-    elseif e isa Core.NewvarNode
-        return Core.NewvarNode(Core.SlotNumber(e.slot.id + slotmap[e.slot.id]))
-    else
-        return e
+    for (v, stmt) in enumerate(ci.src.code)
+        loc = ci.src.codelocs[v]
+
+        if !haskey(ci.stmts, v)
+            push!(code, stmt)
+            push!(codelocs, loc)
+            continue
+        end
+
+        need_push = true
+        for op in ci.stmts[v]
+            if op.type == Insert
+                push!(code, op.stmt)
+                push!(codelocs, loc)
+                changemap[v] += 1
+            elseif op.type == Setindex # replace the old one
+                push!(code, op.stmt)
+                push!(codelocs, loc)
+                need_push = false
+            elseif op.type == Push
+                push!(code, op.stmt)
+                push!(codelocs, loc)
+                need_push = false
+            elseif op.type == Delete
+                changemap[v] -= 1
+                need_push = false
+                continue
+            else
+                error("unknown operation")
+            end
+        end
+
+        if need_push
+            push!(code, stmt)
+            push!(codelocs, loc)
+        end
     end
+
+    Core.Compiler.renumber_ir_elements!(code, changemap)
+    replace_new_ssavalue!(code)
+    return code, codelocs
 end
 
-function finish(ci::NewCodeInfo)
-    Core.Compiler.renumber_ir_elements!(ci.code, ci.changemap)
-    replace_new_ssavalue!(ci.code)
+function emit_new_slotinfo(ci::NewCodeInfo)
+    newslots = Dict{Int,Symbol}()
+    slotnames = copy(ci.src.slotnames)
+    changemap = fill(0, length(ci))
+
+    for (v, slot) in ci.slots.operations
+        if slot.type == Insert
+            newslots[v] = slot.stmt
+            insert!(slotnames, v, slot)
+            prev = length(filter(x -> x < v, keys(newslots)))
+            for k in v-prev:length(slotmap)
+                slotmap[k] += 1
+            end
+        elseif slot.type == Push || slot.type == Setindex
+            slotnames[v] = slot
+        elseif slot.type == Delete
+            error("delete is not supported for slot")
+        else
+            error("unknown operation for slots: $(slot.type)")
+        end
+    end
+
+    return slotnames, changemap
+end
+
+function finish(ci::NewCodeInfo; inline::Bool=true)
+    code, codelocs = emit_slotnames_and_code(ci)
+    slotnames, slotmap = emit_new_slotinfo(ci)
+    update_slots!(code, slotmap)
+
     new_ci = copy(ci.src)
-    new_ci.code = ci.code
-    new_ci.codelocs = ci.codelocs
-    new_ci.slotnames = ci.slotnames
-    new_ci.slotflags = [0x00 for _ in new_ci.slotnames]
-    new_ci.inferred = false
-    new_ci.inlineable = true
-    new_ci.ssavaluetypes = length(ci.code)
+    new_ci.code = code
+    new_ci.codelocs = codelocs
+    new_ci.slotnames = slotnames
+    new_ci.slotflags = [0x00 for _ in slotnames]
+    new_ci.inferred = false # only supports untyped CodeInfo
+    new_ci.inlineable = inline
+    new_ci.ssavaluetypes = length(code)
     return new_ci
 end
 
-function _replace_new_ssavalue(e)
-    if e isa NewSSAValue
-        return SSAValue(e.id)
-    elseif e isa Expr
-        return Expr(e.head, map(_replace_new_ssavalue, e.args)...)
-    elseif e isa Core.GotoIfNot
-        cond = e.cond
-        if cond isa NewSSAValue
-            cond = SSAValue(cond.id)
-        end
-        return Core.GotoIfNot(cond, e.dest)
-    elseif e isa Core.ReturnNode && isdefined(e, :val) && isa(e.val, NewSSAValue)
-        return Core.ReturnNode(SSAValue(e.val.id))
-    else
-        return e
+function update_slots!(code::Vector, slotmap)
+    for (v, stmt) in enumerate(code)
+        code[v] = update_slots(stmt, slotmap)
+    end
+    return code
+end
+
+function update_slots(e, slotmap)
+    @match e begin
+        SlotNumber(id) => SlotNumber(id + slotmap[id])
+        NewvarNode(SlotNumber(id)) => NewvarNode(SlotNumber(id+slotmap[id]))
+        Expr(head, args...) => Expr(head, map(x->update_slots(x, slotmap), e.args)...)
+        _ => e
+    end
+end
+
+function replace_new_ssavalue(e)
+    @match e begin
+        NewSSAValue(id) => SSAValue(id)
+        GotoIfNot(NewSSAValue(id), dest) => GotoIfNot(SSAValue(id), dest)
+        ReturnNode(NewSSAValue(id)) => ReturnNode(SSAValue(id))
+        Expr(head, args...) => Expr(head, map(replace_new_ssavalue, args)...)
+        _ => e
     end
 end
 
 function replace_new_ssavalue!(code::Vector)
-    for idx in 1:length(code)
-        code[idx] = _replace_new_ssavalue(code[idx])
+    for (v, stmt) in enumerate(code)
+        code[v] = replace_new_ssavalue(stmt)
     end
     return code
+end
+
+Base.map(f, ci::CodeInfo) = map(f, NewCodeInfo(ci))
+
+function Base.map(f, ci::NewCodeInfo)
+    for (v, stmt) in ci
+        ci[v] = f(stmt)
+    end
+    return finish(ci)
 end

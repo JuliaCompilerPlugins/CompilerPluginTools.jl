@@ -8,3 +8,7 @@ end
 @testset "interpreter" begin
     include("interp.jl")    
 end
+
+@testset "codeinfo" begin
+    include("codeinfo.jl")
+end
