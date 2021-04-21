@@ -31,5 +31,24 @@ Core.Compiler.unlock_mi_inference(interp::JuliaLikeInterpreter, mi::Core.MethodI
     Core.Compiler.unlock_mi_inference(interp.native_interpreter, mi)
 Core.Compiler.lock_mi_inference(interp::JuliaLikeInterpreter, mi::Core.MethodInstance) =
     Core.Compiler.lock_mi_inference(interp.native_interpreter, mi)
-Core.Compiler.add_remark!(interp::JuliaLikeInterpreter, st::Core.Compiler.InferenceState, msg::String) =
+Core.Compiler.add_remark!(::JuliaLikeInterpreter, ::Core.Compiler.InferenceState, ::String) =
     nothing # println(msg)
+
+
+function Core.Compiler.optimize(interp::JuliaLikeInterpreter, opt::OptimizationState, params::OptimizationParams, @nospecialize(result))
+    nargs = Int(opt.nargs) - 1
+    ir = Core.Compiler.run_passes(opt.src, nargs, opt)
+    ir = optimize(interp, opt, ir)
+    Core.Compiler.finish(opt, params, ir, result)
+end
+
+"""
+    optimize(interp::JuliaLikeInterpreter[, state::OptimizationState], ir::IRCode)
+
+This method is for overloading, it will be executed after running Julia optimizers.
+If you wish to customize the default Julia optimization passes, consider overloading
+`Core.Compiler.optimize(interp, opt, params, result)`.
+"""
+function optimize end
+optimize(interp::JuliaLikeInterpreter, ::OptimizationState, ir::IRCode) = optimize(interp, ir)
+optimize(::JuliaLikeInterpreter, ir::IRCode) = ir

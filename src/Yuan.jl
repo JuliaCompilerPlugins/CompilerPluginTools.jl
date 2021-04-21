@@ -17,6 +17,8 @@ export NewCodeInfo,
     ReturnNode,
     # reexport IRCode types from Core
     IRCode,
+    IncrementalCompact,
+    NewSSAValue,
     obtain_codeinfo,
     obtain_const,
     obtain_const_or_stmt,
@@ -61,6 +63,7 @@ using Core.Compiler:
     IRCode,
     InstructionStream,
     CallMeta,
+    IncrementalCompact,
     JLOptions
 
 using Core.Compiler:
@@ -105,6 +108,6 @@ include("codeinfo.jl")
 include("interp.jl")
 include("typeinf.jl")
 include("ircode.jl")
-
+include("passes.jl")
 
 end

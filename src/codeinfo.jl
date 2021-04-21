@@ -1,58 +1,58 @@
 
-"""
-    obtain_const_or_stmt(@nospecialize(x), ci::CodeInfo) -> (value/stmt, type)
+# """
+#     obtain_const_or_stmt(@nospecialize(x), ci::CodeInfo) -> (value/stmt, type)
 
-Return the value or the statement of given object. If it's `SSAValue`
-return the corresponding value or statement and its type. If the `CodeInfo`
-is not inferred yet, type will be nothing.
-"""
-function obtain_const_or_stmt(@nospecialize(x), ci::CodeInfo)
-    if x isa SSAValue
-        return obtain_ssa(x, ci)
-    elseif x isa QuoteNode
-        return x.value, typeof(x.value)
-    elseif x isa Const
-        return x.val, typeof(x.val)
-    elseif x isa GlobalRef
-        if isdefined(x.mod, x.name) && isconst(x.mod, x.name)
-            val = getfield(x.mod, x.name)
-        else
-            # TODO: move this to parsing time
-            throw(UndefVarError(x.name))
-        end
+# Return the value or the statement of given object. If it's `SSAValue`
+# return the corresponding value or statement and its type. If the `CodeInfo`
+# is not inferred yet, type will be nothing.
+# """
+# function obtain_const_or_stmt(@nospecialize(x), ci::CodeInfo)
+#     if x isa SSAValue
+#         return obtain_ssa(x, ci)
+#     elseif x isa QuoteNode
+#         return x.value, typeof(x.value)
+#     elseif x isa Const
+#         return x.val, typeof(x.val)
+#     elseif x isa GlobalRef
+#         if isdefined(x.mod, x.name) && isconst(x.mod, x.name)
+#             val = getfield(x.mod, x.name)
+#         else
+#             # TODO: move this to parsing time
+#             throw(UndefVarError(x.name))
+#         end
 
-        return val, typeof(val)
-    else
-        # special value
-        return x, typeof(x)
-    end
-end
+#         return val, typeof(val)
+#     else
+#         # special value
+#         return x, typeof(x)
+#     end
+# end
 
-function obtain_ssa(x::SSAValue, ci::CodeInfo)
-    stmt = ci.code[x.id]
-    if ci.ssavaluetypes isa Int
-        # CI is not inferenced yet
-        return stmt, nothing
-    else
-        typ = ci.ssavaluetypes[x.id]
-    end
+# function obtain_ssa(x::SSAValue, ci::CodeInfo)
+#     stmt = ci.code[x.id]
+#     if ci.ssavaluetypes isa Int
+#         # CI is not inferenced yet
+#         return stmt, nothing
+#     else
+#         typ = ci.ssavaluetypes[x.id]
+#     end
 
-    if typ isa Const
-        return typ.val, typeof(typ.val)
-    else
-        return stmt, widenconst(typ)
-    end
-end
+#     if typ isa Const
+#         return typ.val, typeof(typ.val)
+#     else
+#         return stmt, widenconst(typ)
+#     end
+# end
 
-"""
-    obtain_const(x, ci::CodeInfo)
+# """
+#     obtain_const(x, ci::CodeInfo)
 
-Return the corresponding constant value of `x`, when `x` is
-a `SSAValue`, return the corresponding value of `x`. User should
-make sure `x` is actually a constant, or the return value can be
-a statement.
-"""
-obtain_const(@nospecialize(x), ci::CodeInfo) = obtain_const_or_stmt(x, ci)[1]
+# Return the corresponding constant value of `x`, when `x` is
+# a `SSAValue`, return the corresponding value of `x`. User should
+# make sure `x` is actually a constant, or the return value can be
+# a statement.
+# """
+# obtain_const(@nospecialize(x), ci::CodeInfo) = obtain_const_or_stmt(x, ci)[1]
 
 struct NewCodeInfo
     src::CodeInfo

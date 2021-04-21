@@ -1,24 +1,10 @@
-Base.iterate(ic::Core.Compiler.IncrementalCompact) = Core.Compiler.iterate(ic)
-Base.iterate(ic::Core.Compiler.IncrementalCompact, st) = Core.Compiler.iterate(ic, st)
-Base.getindex(ic::Core.Compiler.IncrementalCompact, idx) = Core.Compiler.getindex(ic, idx)
-Base.setindex!(ic::Core.Compiler.IncrementalCompact, v, idx) = Core.Compiler.setindex!(ic, v, idx)
-
-Base.getindex(ic::Core.Compiler.Instruction, idx) = Core.Compiler.getindex(ic, idx)
-Base.setindex!(ic::Core.Compiler.Instruction, v, idx) = Core.Compiler.setindex!(ic, v, idx)
-
-Base.getindex(ir::Core.Compiler.IRCode, idx) = Core.Compiler.getindex(ir, idx)
-Base.setindex!(ir::Core.Compiler.IRCode, v, idx) = Core.Compiler.setindex!(ir, v, idx)
-
-Base.getindex(ref::UseRef) = Core.Compiler.getindex(ref)
-Base.iterate(uses::UseRefIterator) = Core.Compiler.iterate(uses)
-Base.iterate(uses::UseRefIterator, st) = Core.Compiler.iterate(uses, st)
-
-Base.iterate(p::Core.Compiler.Pair) = Core.Compiler.iterate(p)
-Base.iterate(p::Core.Compiler.Pair, st) = Core.Compiler.iterate(p, st)
-
-Base.getindex(m::Core.Compiler.MethodLookupResult, idx::Int) = Core.Compiler.getindex(m, idx)
-
 # copied & modified from brutus
+
+"""
+    code_ircode_by_signature([pass, ]sig; world=get_world_counter(), interp=NativeInterpreter(world))
+
+Get `IRCode` by given signature, one can use the first argument to transform the `IRCode` during interpretation.
+"""
 function code_ircode_by_signature(pass, @nospecialize(sig); world=get_world_counter(), interp=NativeInterpreter(world))
     mi = ccall(:jl_specializations_get_linfo, Ref{Core.MethodInstance}, (Any, Any, Any), data[3], data[1], data[2])
     return [code_ircode_by_mi(pass, mi; world, interp) for data in Base._methods_by_ftype(sig, -1, world)]
@@ -28,6 +14,12 @@ function code_ircode_by_signature(@nospecialize(sig); world=get_world_counter(),
     return code_ircode_by_signature(default_julia_pass, sig; world, interp)
 end
 
+"""
+    code_ircode([pass, ]f, types; world=get_world_counter(), interp=NativeInterpreter(world))
+
+Get `IRCode` by given function `f` and its argument types `types`. An option argument `pass`
+can be specified as a transform function on IRCode during type inference.
+"""
 function code_ircode(@nospecialize(f), @nospecialize(types); world=get_world_counter(), interp=NativeInterpreter(world))
     return code_ircode(default_julia_pass, f, types; world, interp)
 end
@@ -85,22 +77,3 @@ See also [`code_ircode_by_mi`](@ref).
 function code_ircode_by_mi(mi::MethodInstance; world=get_world_counter(), interp=NativeInterpreter(world))
     return code_ircode_by_mi(default_julia_pass, mi; world, interp)
 end
-
-function default_julia_pass(ir::IRCode, sv::OptimizationState)
-    ir = compact!(ir)
-    ir = ssa_inlining_pass!(ir, ir.linetable, sv.inlining, sv.src.propagate_inbounds)
-    ir = compact!(ir)
-    ir = getfield_elim_pass!(ir)
-    ir = adce_pass!(ir)
-    ir = type_lift_pass!(ir)
-    ir = compact!(ir)
-    if JLOptions().debug_level == 2
-        verify_ir(ir)
-        verify_linetable(ir.linetable)
-    end
-    return ir
-end
-
-no_pass(ir::IRCode, ::OptimizationState) = ir
-
-include("pass/const_prop.jl")

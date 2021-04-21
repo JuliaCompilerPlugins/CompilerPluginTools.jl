@@ -1,8 +1,13 @@
 using Test
 using Yuan
 
+foo(x) = 2x
 
-ci = code_lowered(cos, (Float64, ))[1]
+ci = code_lowered(foo, (Float64, ))[1]
+new = NewCodeInfo(ci, 1)
+
+
+
 ci, typ = code_typed(cos, (Float64, ))[1]
 ir, typ = code_ircode(cos, (Float64, ))[1]
 ir
