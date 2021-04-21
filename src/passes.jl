@@ -15,50 +15,35 @@ end
 
 no_pass(ir::IRCode, ::OptimizationState) = ir
 
-function permute_stmts!(stmt::InstructionStream, perm::Vector{Int})
-    inst = []
-
-    for v in perm
-        e = stmt.inst[v]
-
-        if e isa Expr
-            ex = replace_from_perm(e, perm)
-            push!(inst, ex)
-        elseif e isa Core.GotoIfNot
-            if e.cond isa Core.SSAValue
-                cond = Core.SSAValue(findfirst(isequal(e.cond.id), perm))
-            else
-                # TODO: figure out which case is this
-                # and maybe apply permute to this
-                cond = e.cond
-            end
-
-            dest = findfirst(isequal(e.dest), perm)
-            push!(inst, Core.GotoIfNot(cond, dest))
-        elseif e isa Core.GotoNode
-            push!(inst, Core.GotoNode(findfirst(isequal(e.label), perm)))
-        elseif e isa Core.ReturnNode
-            if isdefined(e, :val) && e.val isa Core.SSAValue
-                push!(inst, Core.ReturnNode(Core.SSAValue(findfirst(isequal(e.val.id), perm))))
-            else
-                push!(inst, e)
-            end
-        else
-            # RL: I think
-            # other nodes won't contain SSAValue
-            # let's just ignore them, but if we
-            # find any we can add them here
-            push!(inst, e)
-            # if e isa Core.SlotNumber
-            #     push!(inst, e)
-            # elseif e isa Core.NewvarNode
-            #     push!(inst, e)
-            # else
-            # end
-            # error("unrecognized statement $e :: ($(typeof(e)))")
-        end
+function replace_from_perm(stmt, perm)
+    @match stmt begin
+        SSAValue(id) => SSAValue(findfirst(isequal(id), perm))
+        Expr(head, args...) => Expr(head, map(x->replace_from_perm(x, perm), args)...)
+        _ => stmt
     end
+end
 
+function permute_stmt(e, perm::Vector{Int})
+    @switch e begin
+        @case SSAValue(id)
+            return SSAValue(findfirst(isequal(id), perm))
+        @case ::Expr
+            return replace_from_perm(e, perm)
+        @case GotoIfNot(cond, dest)
+            cond = permute_stmt(cond, perm)
+            dest = findfirst(isequal(dest), perm)
+            return GotoIfNot(cond, dest)
+        @case GotoNode(label)
+            return GotoNode(SSAValue(findfirst(isequal(label), perm)))
+        @case ReturnNode(val)
+            return ReturnNode(permute_stmt(val, perm))
+        @case _
+            return e
+    end
+end
+
+function permute_stmts!(stmt::InstructionStream, perm::Vector{Int})
+    inst = Any[permute_stmt(stmt.inst[v], perm) for v in perm]
     copyto!(stmt.inst, inst)
     permute!(stmt.flag, perm)
     permute!(stmt.line, perm)
@@ -67,55 +52,85 @@ function permute_stmts!(stmt::InstructionStream, perm::Vector{Int})
     return stmt
 end
 
+function is_allconst(sig::Signature)
+    allconst = true
+    for atype in sig.atypes
+        if !isa(atype, Const)
+            allconst = false
+            break
+        end
+    end
+    return allconst
+end
+
+function is_arg_allconst(ir, arg)
+    if arg isa Argument
+        return false
+    elseif arg isa SSAValue
+        return is_arg_allconst(ir, ir.stmts[arg.id][:inst])
+    elseif !is_inlineable_constant(arg) && !isa(arg, QuoteNode)
+        return false
+    end
+    return true
+end
+
+function is_const_call_inlineable(sig::Signature)
+    is_allconst(sig) || return false
+    f, ft, atypes = sig.f, sig.ft, sig.atypes
+    
+    if isa(f, IntrinsicFunction) && is_pure_intrinsic_infer(f) && intrinsic_nothrow(f, atypes[2:end])
+        return true
+    end
+
+    if isa(f, Builtin) && (f === Core.tuple || f === Core.getfield)
+        return true
+    end
+    return false
+end
+
+function unwrap_arg(ir, arg)
+    if arg isa QuoteNode
+        return arg.value
+    elseif arg isa SSAValue
+        return unwrap_arg(ir, ir.stmts[arg.id][:inst])
+    else
+        return arg
+    end
+end
+
+"""
+    inline_const!(ir::IRCode)
+
+This performs constant propagation on `IRCode` so after the constant propagation
+during abstract interpretation, we can force inline constant values in `IRCode`.
+"""
 function inline_const!(ir::IRCode)
     for i in 1:length(ir.stmts)
         stmt = ir.stmts[i][:inst]
-        if stmt isa GlobalRef
-            t = Core.Compiler.abstract_eval_global(stmt.mod, stmt.name)
-            t isa Const || continue
-            ir.stmts[i][:inst] = quoted(t.val)
-            ir.stmts[i][:type] = t
-        elseif stmt isa Expr
-            if stmt.head === :call
+        @switch stmt begin
+            @case GlobalRef(mod, name)
+                t = Core.Compiler.abstract_eval_global(mod, name)
+                t isa Const || continue
+                ir.stmts[i][:inst] = quoted(t.val)
+                ir.stmts[i][:type] = t
+            @case Expr(:call, _...)
                 sig = Core.Compiler.call_sig(ir, stmt)
-                f, ft, atypes = sig.f, sig.ft, sig.atypes
-                allconst = true
-                for atype in sig.atypes
-                    if !isa(atype, Const)
-                        allconst = false
-                        break
-                    end
-                end
-    
-                if allconst &&
-                    isa(f, Core.IntrinsicFunction) &&
-                    is_pure_intrinsic_infer(f) &&
-                    intrinsic_nothrow(f, atypes[2:end])
-    
-                    fargs = anymap(x::Const -> x.val, atypes[2:end])
-                    val = f(fargs...)
-                    ir.stmts[i][:inst] = quoted(val)
-                    ir.stmts[i][:type] = Const(val)
-                elseif allconst && isa(f, Core.Builtin) && 
-                       (f === Core.tuple || f === Core.getfield)
+                if is_const_call_inlineable(sig)
                     fargs = anymap(x::Const -> x.val, atypes[2:end])
                     val = f(fargs...)
                     ir.stmts[i][:inst] = quoted(val)
                     ir.stmts[i][:type] = Const(val)
                 end
-            elseif stmt.head === :new
-                exargs = stmt.args[2:end]
-                allconst = all(arg->is_arg_allconst(ir, arg), exargs)
-                t = stmt.args[1]
-                if allconst && isconcretetype(t) && !t.mutable
-                    args = anymap(arg->unwrap_arg(ir, arg), exargs)
-                    val = ccall(:jl_new_structv, Any, (Any, Ptr{Cvoid}, UInt32), t, args, length(args))
-    
-                    ir.stmts[i][:inst] = quoted(val)
-                    ir.stmts[i][:type] = Const(val)
-                end
-            end # if stmt.head
-        end # if stmt isa X
+            @case Expr(:new, t, args...)
+                allconst = all(x->is_arg_allconst(ir, x), args)
+                allconst && isconcretetype(t) && !t.mutable || continue
+                args = anymap(arg->unwrap_arg(ir, arg), exargs)
+                val = ccall(:jl_new_structv, Any, (Any, Ptr{Cvoid}, UInt32), t, args, length(args))
+                ir.stmts[i][:inst] = quoted(val)
+                ir.stmts[i][:type] = Const(val)
+            @case _
+                nothing
+        end
     end
     return ir
 end

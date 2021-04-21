@@ -33,7 +33,7 @@ end
 
 @active NewvarNode(x) begin
     if x isa NewvarNode
-        return x.slot
+        Some(x.slot)
     else
         nothing
     end
@@ -63,9 +63,27 @@ end
     end
 end
 
+@active GotoNode(x) begin
+    if x isa GotoNode
+        Some(x.label)
+    else
+        nothing
+    end
+end
+
 @active GotoIfNot(x) begin
     if x isa GotoIfNot
         x.cond, x.dest
+    else
+        nothing
+    end
+end
+
+@active Signature(x) begin
+    if x isa Signature && isdefined(x, :atype)
+        x.f, x.ft, x.atypes, x.atype
+    elseif x isa Signature
+        x.f, x.ft, x.atypes
     else
         nothing
     end

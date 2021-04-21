@@ -62,6 +62,7 @@ using Core.Compiler:
     InferenceState,
     CFG,
     NewSSAValue,
+    Signature,
     IRCode,
     InstructionStream,
     CallMeta,
