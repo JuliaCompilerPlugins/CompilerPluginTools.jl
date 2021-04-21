@@ -1,7 +1,10 @@
 using CompilerPluginTools
+using DocThemeIndigo
 using Documenter
 
 DocMeta.setdocmeta!(CompilerPluginTools, :DocTestSetup, :(using CompilerPluginTools); recursive=true)
+
+indigo = DocThemeIndigo.install(CompilerPluginTools)
 
 makedocs(;
     modules=[CompilerPluginTools],
@@ -11,7 +14,7 @@ makedocs(;
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
         canonical="https://JuliaCompilerPlugins.github.io/CompilerPluginTools.jl",
-        assets=String[],
+        assets=String[indigo],
     ),
     pages=[
         "Home" => "index.md",
