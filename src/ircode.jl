@@ -79,12 +79,3 @@ See also [`code_ircode_by_mi`](@ref).
 function code_ircode_by_mi(mi::MethodInstance; world=get_world_counter(), interp=NativeInterpreter(world))
     return code_ircode_by_mi(default_julia_pass, mi; world, interp)
 end
-
-macro ircode(ex)
-    quote
-        let
-            ci = $(codeinfo_m(ex))
-            Core.Compiler.inflate_ir(ci)
-        end
-    end |> esc
-end

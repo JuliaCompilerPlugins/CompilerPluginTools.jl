@@ -16,3 +16,7 @@ end
 @testset "passes" begin
     include("passes.jl")
 end
+
+@testset "intrinsic" begin
+    include("intrinsic.jl")
+end

@@ -8,7 +8,7 @@ struct Foo
 end
 
 @testset "inline_const" begin
-    ir = @ircode begin
+    ir = @make_ircode begin
         Expr(:call, Core.Intrinsics.abs_float, 1.0)::Float64
         GlobalRef(Main, :GLOBAL_CONST)::Float64
         ReturnNode(SSAValue(1))::Float64
@@ -20,7 +20,7 @@ end
     @test ir.stmts[2][:inst] == 2.0
     @test ir.stmts[2][:type] == Const(2.0)
 
-    ir = @ircode begin
+    ir = @make_ircode begin
         Expr(:call, Core.Intrinsics.abs_float, 1.0)::Float64
         Expr(:new, Foo, 2)::Foo
         ReturnNode(SSAValue(1))::Float64
@@ -31,7 +31,7 @@ end
     @test ir.stmts[2][:inst] == QuoteNode(Foo(2))
     @test ir.stmts[2][:type] == Const(Foo(2))
 
-    ir = @ircode begin
+    ir = @make_ircode begin
         QuoteNode(1)::Int
         Expr(:new, Foo, SSAValue(1))::Foo
         ReturnNode(SSAValue(1))::Int
@@ -40,7 +40,7 @@ end
     @test ir.stmts[2][:inst] == QuoteNode(Foo(1))
     @test ir.stmts[2][:type] == Const(Foo(1))
 
-    ir = @ircode begin
+    ir = @make_ircode begin
         Expr(:call, Core.tuple, 1, 2, 3)::Tuple{Int, Int, Int}
         ReturnNode(SSAValue(1))::Tuple{Int, Int, Int}
     end
@@ -50,7 +50,7 @@ end
 end
 
 @testset "permute_stmts!" begin
-    ir = @ircode begin
+    ir = @make_ircode begin
         QuoteNode(1.0)::Const(1.0)
         Expr(:call, sin, SSAValue(1))::Float64
         QuoteNode(2.0)::Const(2.0)
@@ -79,7 +79,7 @@ end
 @testset "const_invoke!" begin
     mi = method_instances(foo, (Float64, ))[1]
 
-    ir = @ircode begin
+    ir = @make_ircode begin
         Expr(:invoke, mi, GlobalRef(Main, :foo), 2.2)::Float64
         Expr(:invoke, mi, GlobalRef(Main, :foo), Argument(2))::Float64
         ReturnNode(SSAValue(1))::Float64

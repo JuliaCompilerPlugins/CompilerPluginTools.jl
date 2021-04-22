@@ -38,11 +38,15 @@ export NewCodeInfo,
     permute_stmts!,
     const_invoke!,
     finish,
-    @codeinfo,
-    @ircode
+    IntrinsicError,
+    @make_codeinfo,
+    @make_ircode,
+    @intrinsic_stub
 
 using Base:
     method_instances
+
+using Base.Meta: ParseError
 
 using Core:
     CodeInfo,
@@ -115,11 +119,13 @@ using Core.Compiler:
     retrieve_code_info,
     slot2reg
 
+include("utils.jl")
 include("patches.jl")
 include("codeinfo.jl")
 include("interp.jl")
 include("typeinf.jl")
 include("ircode.jl")
 include("passes.jl")
+include("intrinsic.jl")
 
 end
