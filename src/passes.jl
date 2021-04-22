@@ -140,3 +140,29 @@ function inline_const!(ir::IRCode)
     end
     return ir
 end
+
+"""
+    const_invoke!(f, ir::IRCode, ref::GlobalRef)
+
+Replace the function invoke `Expr(:invoke, _, ref, args...)` with
+`f(args...)` if its arguments `args` are all constant.
+"""
+function const_invoke!(f, ir::IRCode, ref::GlobalRef)
+    for i in 1:length(ir.stmts)
+        stmt = ir.stmts[i][:inst]
+        
+        @switch stmt begin
+            @case Expr(:invoke, _, ref, args...)
+                if all(x->is_arg_allconst(ir, x), args)
+                    args = anymap(x->unwrap_arg(ir, x), args)
+                    val = f(args...)
+
+                    ir.stmts[i][:inst] = quoted(val)
+                    ir.stmts[i][:type] = Const(val)
+                end
+            @case _
+                nothing
+        end
+    end
+    return ir
+end

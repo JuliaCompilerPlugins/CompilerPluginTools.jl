@@ -71,3 +71,22 @@ end
     @test ir.stmts[7][:inst] == Expr(:call, +, SSAValue(3), SSAValue(4))
     @test ir.stmts[8][:inst] == ReturnNode(SSAValue(6))
 end
+
+function foo(x)
+    2x
+end
+
+@testset "const_invoke!" begin
+    mi = method_instances(foo, (Float64, ))[1]
+
+    ir = @ircode begin
+        Expr(:invoke, mi, GlobalRef(Main, :foo), 2.2)::Float64
+        ReturnNode(SSAValue(1))::Float64
+    end
+    
+    ir = const_invoke!(ir, GlobalRef(Main, :foo)) do x
+        3x
+    end
+    
+    @test ir.stmts[1][:inst] ≈ 3 * 2.2
+end
