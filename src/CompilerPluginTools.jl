@@ -36,7 +36,8 @@ export NewCodeInfo,
     # extra pass
     inline_const!,
     permute_stmts!,
-    @codeinfo
+    @codeinfo,
+    @ircode
 
 using Base:
     method_instances

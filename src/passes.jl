@@ -44,14 +44,14 @@ function permute_stmt(e, perm::Vector{Int})
     end
 end
 
-function permute_stmts!(stmt::InstructionStream, perm::Vector{Int})
-    inst = Any[permute_stmt(stmt.inst[v], perm) for v in perm]
-    copyto!(stmt.inst, inst)
-    permute!(stmt.flag, perm)
-    permute!(stmt.line, perm)
-    permute!(stmt.type, perm)
-    permute!(stmt.flag, perm)
-    return stmt
+function permute_stmts!(ir::IRCode, perm::Vector{Int})
+    inst = Any[permute_stmt(ir.stmts.inst[v], perm) for v in perm]
+    copyto!(ir.stmts.inst, inst)
+    permute!(ir.stmts.flag, perm)
+    permute!(ir.stmts.line, perm)
+    permute!(ir.stmts.type, perm)
+    permute!(ir.stmts.flag, perm)
+    return ir
 end
 
 function is_allconst(sig::Signature)
@@ -127,6 +127,7 @@ function inline_const!(ir::IRCode)
                 allconst = all(x->is_arg_allconst(ir, x), args)
                 allconst && isconcretetype(t) && !t.mutable || continue
                 args = anymap(arg->unwrap_arg(ir, arg), args)
+                @show args
                 val = ccall(:jl_new_structv, Any, (Any, Ptr{Cvoid}, UInt32), t, args, length(args))
                 ir.stmts[i][:inst] = quoted(val)
                 ir.stmts[i][:type] = Const(val)
