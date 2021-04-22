@@ -37,6 +37,7 @@ export NewCodeInfo,
     inline_const!,
     permute_stmts!,
     const_invoke!,
+    finish,
     @codeinfo,
     @ircode
 

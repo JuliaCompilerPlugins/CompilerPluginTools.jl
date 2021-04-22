@@ -43,7 +43,7 @@ end
                 nothing
         end
     end
-    test_ci = CompilerPluginTools.finish(new)
+    test_ci = finish(new)
 
     @test test_ci.code[1] == :(1 + 1)
     @test test_ci.code[2] isa GotoIfNot
@@ -51,4 +51,15 @@ end
     @test test_ci.code[4] == :(overdub($(SSAValue(3)), $(GlobalRef(Main, :*)), 2, $(SlotNumber(2))))
     @test test_ci.code[5] == ReturnNode(SSAValue(4))
     @test test_ci.code[6] == "variable: %5"
+
+    @testset "slot insertion" begin
+        ci = code_lowered(foo, (Float64, ))[1]
+        new = NewCodeInfo(ci)
+        insert!(new.slots, 1, Symbol("#a#"))
+        insert!(new.slots, 1, Symbol("#b#"))
+        nci = finish(new)
+        @test nci.code[1] == Expr(:call, GlobalRef(Main, :>), SlotNumber(4), 0)
+        @test nci.code[2] == GotoIfNot(SSAValue(1), 5)
+        @test nci.slotnames == [Symbol("#b#"), Symbol("#a#"), Symbol("#self#"), :x]
+    end
 end

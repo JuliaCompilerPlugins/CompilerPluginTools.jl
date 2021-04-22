@@ -1,59 +1,11 @@
+"""
+    @codeinfo begin
+        <stmt>::<type>
+    end
 
-# """
-#     obtain_const_or_stmt(@nospecialize(x), ci::CodeInfo) -> (value/stmt, type)
-
-# Return the value or the statement of given object. If it's `SSAValue`
-# return the corresponding value or statement and its type. If the `CodeInfo`
-# is not inferred yet, type will be nothing.
-# """
-# function obtain_const_or_stmt(@nospecialize(x), ci::CodeInfo)
-#     if x isa SSAValue
-#         return obtain_ssa(x, ci)
-#     elseif x isa QuoteNode
-#         return x.value, typeof(x.value)
-#     elseif x isa Const
-#         return x.val, typeof(x.val)
-#     elseif x isa GlobalRef
-#         if isdefined(x.mod, x.name) && isconst(x.mod, x.name)
-#             val = getfield(x.mod, x.name)
-#         else
-#             # TODO: move this to parsing time
-#             throw(UndefVarError(x.name))
-#         end
-
-#         return val, typeof(val)
-#     else
-#         # special value
-#         return x, typeof(x)
-#     end
-# end
-
-# function obtain_ssa(x::SSAValue, ci::CodeInfo)
-#     stmt = ci.code[x.id]
-#     if ci.ssavaluetypes isa Int
-#         # CI is not inferenced yet
-#         return stmt, nothing
-#     else
-#         typ = ci.ssavaluetypes[x.id]
-#     end
-
-#     if typ isa Const
-#         return typ.val, typeof(typ.val)
-#     else
-#         return stmt, widenconst(typ)
-#     end
-# end
-
-# """
-#     obtain_const(x, ci::CodeInfo)
-
-# Return the corresponding constant value of `x`, when `x` is
-# a `SSAValue`, return the corresponding value of `x`. User should
-# make sure `x` is actually a constant, or the return value can be
-# a statement.
-# """
-# obtain_const(@nospecialize(x), ci::CodeInfo) = obtain_const_or_stmt(x, ci)[1]
-
+Create a typed `CodeInfo` object, if field `<type>` is not specified, it will
+use `Any`.
+"""
 macro codeinfo(ex)
     esc(codeinfo_m(ex))
 end
@@ -102,34 +54,84 @@ struct Operation
     stmt
 end
 
-struct Record
-    operations::Dict{Int, Vector{Operation}} # Insert/Setindex
+mutable struct SlotRecord
+    slotnames::Vector{Symbol}
+    newslotmap::Dict{Int, Symbol}
+    changemap::Dict{Symbol, Int}
+    counter::Int
 end
 
-Record() = Record(Dict{Int, Vector{Operation}}())
+function SlotRecord(ci::CodeInfo)
+    slotnames = copy(ci.slotnames)
+    newslotmap = Dict{Int, Symbol}()
+    changemap = Dict{Symbol, Int}()
+    SlotRecord(slotnames, newslotmap, changemap, 0)
+end
 
-Base.getindex(rc::Record, v) = rc.operations[v]
-Base.haskey(rc::Record, v) = haskey(rc.operations, v)
+struct NewSlotNumber
+    id::Int
+end
 
-function Base.setindex!(rc::Record, stmt, v)
+@active NewSlotNumber(x) begin
+    if x isa NewSlotNumber
+        Some(x.id)
+    else
+        nothing
+    end
+end
+
+function Base.setindex!(rc::SlotRecord, slot::Symbol, v::Int)
+    rc.slotnames[v] = slot
+    return SlotNumber(v)
+end
+
+function Base.insert!(rc::SlotRecord, v::Int, slot::Symbol)
+    insert!(rc.slotnames, v, slot)
+    for k in v+1:length(rc.slotnames)
+        name = rc.slotnames[k]
+        rc.changemap[name] = get(rc.changemap, name, 0) + 1
+    end
+
+    id = rc.counter += 1
+    rc.newslotmap[id] = slot
+    return NewSlotNumber(id)
+end
+
+# let's not support this since it requires
+# us to check if the slot number is used or not
+Base.delete!(::SlotRecord, ::Int) = error("delete slot is not supported")
+
+
+struct StmtRecord
+    data::Dict{Int, Vector{Operation}}
+end
+
+StmtRecord() = StmtRecord(Dict{Int, Vector{Operation}}())
+
+Base.getindex(rc::StmtRecord, v) = rc.data[v]
+Base.haskey(rc::StmtRecord, v) = haskey(rc.data, v)
+Base.iterate(rc::StmtRecord) = iterate(rc.data)
+Base.iterate(rc::StmtRecord, st) = iterate(rc.data, st)
+
+function Base.setindex!(rc::StmtRecord, stmt, v)
     push!(
-        get!(rc.operations, v, Operation[]),
+        get!(rc.data, v, Operation[]),
         Operation(Setindex, stmt)
     )
     return stmt
 end
 
-function Base.insert!(rc::Record, v, stmt)
+function Base.insert!(rc::StmtRecord, v, stmt)
     push!(
-        get!(rc.operations, v, Operation[]),
+        get!(rc.data, v, Operation[]),
         Operation(Insert, stmt)
     )
     return rc
 end
 
-function Base.delete!(rc::Record, v)
+function Base.delete!(rc::StmtRecord, v)
     push!(
-        get!(rc.operations, v, Operation[]),
+        get!(rc.data, v, Operation[]),
         Operation(Delete, nothing)
     )
     return rc
@@ -138,12 +140,12 @@ end
 mutable struct NewCodeInfo
     src::CodeInfo
     pc::Int # current SSAValue
-    slots::Record
-    stmts::Record
+    slots::SlotRecord
+    stmts::StmtRecord
 end
 
 function NewCodeInfo(ci::CodeInfo)
-    NewCodeInfo(ci, 0, Record(), Record())
+    NewCodeInfo(ci, 0, SlotRecord(ci), StmtRecord())
 end
 
 Base.length(ci::NewCodeInfo) = length(ci.src.code)
@@ -178,7 +180,7 @@ function Base.push!(ci::NewCodeInfo, stmt)
     return ci
 end
 
-function emit_slotnames_and_code(ci::NewCodeInfo)
+function emit_code(ci::NewCodeInfo)
     changemap = fill(0, length(ci))
     code, codelocs = [], Int32[]
 
@@ -225,59 +227,51 @@ function emit_slotnames_and_code(ci::NewCodeInfo)
     return code, codelocs
 end
 
-function emit_new_slotinfo(ci::NewCodeInfo)
-    newslots = Dict{Int,Symbol}()
-    slotnames = copy(ci.src.slotnames)
-    changemap = fill(0, length(ci))
+function emit_slot_changemap(ci::NewCodeInfo)
+    changemap = fill(0, length(ci.src.slotnames))
 
-    for (v, slot) in ci.slots.operations
-        if slot.type == Insert
-            newslots[v] = slot.stmt
-            insert!(slotnames, v, slot)
-            prev = length(filter(x -> x < v, keys(newslots)))
-            for k in v-prev:length(slotmap)
-                slotmap[k] += 1
-            end
-        elseif slot.type == Push || slot.type == Setindex
-            slotnames[v] = slot
-        elseif slot.type == Delete
-            error("delete is not supported for slot")
-        else
-            error("unknown operation for slots: $(slot.type)")
+    for (old, name) in enumerate(ci.src.slotnames)
+        if haskey(ci.slots.changemap, name)
+            changemap[old] = ci.slots.changemap[name]
         end
     end
 
-    return slotnames, changemap
+    newslotmap = Dict{Int, Int}()
+    for (id, slot) in ci.slots.newslotmap
+        newslotmap[id] = findfirst(isequal(slot), ci.slots.slotnames)
+    end
+    return newslotmap, changemap
 end
 
 function finish(ci::NewCodeInfo; inline::Bool=true)
-    code, codelocs = emit_slotnames_and_code(ci)
-    slotnames, slotmap = emit_new_slotinfo(ci)
-    update_slots!(code, slotmap)
+    code, codelocs = emit_code(ci)
+    newslotmap, changemap = emit_slot_changemap(ci)
+    update_slots!(code, newslotmap, changemap)
 
     new_ci = copy(ci.src)
     new_ci.code = code
     new_ci.codelocs = codelocs
-    new_ci.slotnames = slotnames
-    new_ci.slotflags = [0x00 for _ in slotnames]
+    new_ci.slotnames = ci.slots.slotnames
+    new_ci.slotflags = [0x00 for _ in ci.slots.slotnames]
     new_ci.inferred = false # only supports untyped CodeInfo
     new_ci.inlineable = inline
     new_ci.ssavaluetypes = length(code)
     return new_ci
 end
 
-function update_slots!(code::Vector, slotmap)
+function update_slots!(code::Vector, newslotmap, changemap)
     for (v, stmt) in enumerate(code)
-        code[v] = update_slots(stmt, slotmap)
+        code[v] = update_slots(stmt, newslotmap, changemap)
     end
     return code
 end
 
-function update_slots(e, slotmap)
+function update_slots(e, newslotmap, changemap)
     @match e begin
-        SlotNumber(id) => SlotNumber(id + slotmap[id])
+        SlotNumber(id) => SlotNumber(id + changemap[id])
+        NewSlotNumber(id) => SlotNumber(newslotmap[id])
         NewvarNode(SlotNumber(id)) => NewvarNode(SlotNumber(id+slotmap[id]))
-        Expr(head, args...) => Expr(head, map(x->update_slots(x, slotmap), e.args)...)
+        Expr(head, args...) => Expr(head, map(x->update_slots(x, newslotmap, changemap), e.args)...)
         _ => e
     end
 end
