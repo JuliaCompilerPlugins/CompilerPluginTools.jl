@@ -130,7 +130,6 @@ function inline_const!(ir::IRCode)
                 allconst = all(x->is_arg_allconst(ir, x), args)
                 allconst && isconcretetype(t) && !t.mutable || continue
                 args = anymap(arg->unwrap_arg(ir, arg), args)
-                @show args
                 val = ccall(:jl_new_structv, Any, (Any, Ptr{Cvoid}, UInt32), t, args, length(args))
                 ir.stmts[i][:inst] = quoted(val)
                 ir.stmts[i][:type] = Const(val)

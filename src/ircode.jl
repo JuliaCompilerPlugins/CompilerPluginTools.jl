@@ -6,8 +6,10 @@
 Get `IRCode` by given signature, one can use the first argument to transform the `IRCode` during interpretation.
 """
 function code_ircode_by_signature(pass, @nospecialize(sig); world=get_world_counter(), interp=NativeInterpreter(world))
-    mi = ccall(:jl_specializations_get_linfo, Ref{Core.MethodInstance}, (Any, Any, Any), data[3], data[1], data[2])
-    return [code_ircode_by_mi(pass, mi; world, interp) for data in Base._methods_by_ftype(sig, -1, world)]
+    return map(Base._methods_by_ftype(sig, -1, world)) do data
+        mi = ccall(:jl_specializations_get_linfo, Ref{Core.MethodInstance}, (Any, Any, Any), data[3], data[1], data[2])
+        code_ircode_by_mi(pass, mi; world, interp)
+    end
 end
 
 function code_ircode_by_signature(@nospecialize(sig); world=get_world_counter(), interp=NativeInterpreter(world))

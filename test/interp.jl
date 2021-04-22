@@ -11,3 +11,4 @@ function CompilerPluginTools.optimize(interp::TestInterpreter, ir::IRCode)
 end
 
 code_ircode(sin, (Float64, ); interp=TestInterpreter(NativeInterpreter()))
+code_ircode_by_signature(Tuple{typeof(sin), Float64}; interp=TestInterpreter(NativeInterpreter()))
