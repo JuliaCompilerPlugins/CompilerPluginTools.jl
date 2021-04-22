@@ -33,7 +33,10 @@ function permute_stmt(e, perm::Vector{Int})
             return replace_from_perm(e, perm)
         @case GotoIfNot(cond, dest)
             cond = permute_stmt(cond, perm)
-            dest = findfirst(isequal(dest), perm)
+            # NOTE:
+            # dest in IRCode refers to #BB
+            # don't update it
+            # dest = findfirst(isequal(dest), perm)
             return GotoIfNot(cond, dest)
         @case GotoNode(label)
             return GotoNode(SSAValue(findfirst(isequal(label), perm)))
