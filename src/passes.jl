@@ -1,3 +1,5 @@
+anymap(f, xs) = Any[f(x) for x in xs]
+
 function default_julia_pass(ir::IRCode, sv::OptimizationState)
     ir = compact!(ir)
     ir = ssa_inlining_pass!(ir, ir.linetable, sv.inlining, sv.src.propagate_inbounds)
@@ -124,7 +126,7 @@ function inline_const!(ir::IRCode)
             @case Expr(:new, t, args...)
                 allconst = all(x->is_arg_allconst(ir, x), args)
                 allconst && isconcretetype(t) && !t.mutable || continue
-                args = anymap(arg->unwrap_arg(ir, arg), exargs)
+                args = anymap(arg->unwrap_arg(ir, arg), args)
                 val = ccall(:jl_new_structv, Any, (Any, Ptr{Cvoid}, UInt32), t, args, length(args))
                 ir.stmts[i][:inst] = quoted(val)
                 ir.stmts[i][:type] = Const(val)

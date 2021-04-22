@@ -1,12 +1,4 @@
 # MLStyle patches
-@active GlobalRef(x) begin
-    if x isa GlobalRef
-        (x.mod, x.name)
-    else
-        nothing
-    end
-end
-
 @active Argument(x) begin
     if x isa Argument
         Some(x.n)

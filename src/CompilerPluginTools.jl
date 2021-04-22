@@ -101,7 +101,6 @@ using Core.Compiler:
     is_pure_intrinsic_infer,
     intrinsic_nothrow,
     quoted,
-    anymap,
     # Julia passes
     compact!,
     ssa_inlining_pass!,
