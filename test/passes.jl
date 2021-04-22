@@ -81,6 +81,7 @@ end
 
     ir = @ircode begin
         Expr(:invoke, mi, GlobalRef(Main, :foo), 2.2)::Float64
+        Expr(:invoke, mi, GlobalRef(Main, :foo), Argument(2))::Float64
         ReturnNode(SSAValue(1))::Float64
     end
     
@@ -89,4 +90,5 @@ end
     end
     
     @test ir.stmts[1][:inst] ≈ 3 * 2.2
+    @test ir.stmts[2][:inst] == Expr(:invoke, mi, GlobalRef(Main, :foo), Argument(2))
 end
