@@ -13,7 +13,7 @@ end
 
 @testset "map(f, ::CodeInfo)" begin
     ci = code_lowered(foo, (Float64, ))[1]
-    test_ci = map(ci) do stmt
+    test_ci = map(NewCodeInfo(ci)) do stmt
         @match stmt begin
             Expr(:call, f, args...) => Expr(:call, :overdub, f, args...)
             _ => stmt

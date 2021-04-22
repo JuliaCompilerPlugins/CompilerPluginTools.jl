@@ -293,8 +293,6 @@ function replace_new_ssavalue!(code::Vector)
     return code
 end
 
-Base.map(f, ci::CodeInfo) = map(f, NewCodeInfo(ci))
-
 function Base.map(f, ci::NewCodeInfo)
     for (v, stmt) in ci
         ci[v] = f(stmt)

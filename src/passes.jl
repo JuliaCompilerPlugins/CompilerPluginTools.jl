@@ -1,5 +1,15 @@
+"""
+    anymap(f, xs)
+
+Like `map`, but force to create `Vector{Any}`.
+"""
 anymap(f, xs) = Any[f(x) for x in xs]
 
+"""
+    default_julia_pass(ir::IRCode, sv::OptimizationState)
+
+The default julia optimization pass.
+"""
 function default_julia_pass(ir::IRCode, sv::OptimizationState)
     ir = compact!(ir)
     ir = ssa_inlining_pass!(ir, ir.linetable, sv.inlining, sv.src.propagate_inbounds)
@@ -15,6 +25,11 @@ function default_julia_pass(ir::IRCode, sv::OptimizationState)
     return ir
 end
 
+"""
+    no_pass(ir::IRCode, ::OptimizationState)
+
+No pass.
+"""
 no_pass(ir::IRCode, ::OptimizationState) = ir
 
 function replace_from_perm(stmt, perm)
@@ -47,6 +62,11 @@ function permute_stmt(e, perm::Vector{Int})
     end
 end
 
+"""
+    permute_stmts!(ir::IRCode, perm::Vector{Int})
+
+Permute statements according to `perm`.
+"""
 function permute_stmts!(ir::IRCode, perm::Vector{Int})
     inst = Any[permute_stmt(ir.stmts.inst[v], perm) for v in perm]
     copyto!(ir.stmts.inst, inst)
