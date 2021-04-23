@@ -58,11 +58,13 @@ end
 Base.delete!(::SlotRecord, ::Int) = error("delete slot is not supported")
 
 
-struct StmtRecord
+mutable struct StmtRecord
+    counter::Int
+    newssa::Dict{Int, Vector{NewSSAValue}}
     data::Dict{Int, Vector{Operation}}
 end
 
-StmtRecord() = StmtRecord(Dict{Int, Vector{Operation}}())
+StmtRecord() = StmtRecord(0, Dict{Int, Vector{NewSSAValue}}(), Dict{Int, Vector{Operation}}())
 
 Base.getindex(rc::StmtRecord, v) = rc.data[v]
 Base.haskey(rc::StmtRecord, v) = haskey(rc.data, v)
@@ -82,7 +84,11 @@ function Base.insert!(rc::StmtRecord, v, stmt)
         get!(rc.data, v, Operation[]),
         Operation(Insert, stmt)
     )
-    return rc
+
+    rc.counter += 1
+    var = NewSSAValue(rc.counter) # length(code) + 1
+    push!(get!(rc.newssa, v, NewSSAValue[]), var)
+    return var
 end
 
 function Base.delete!(rc::StmtRecord, v)
@@ -109,8 +115,12 @@ Base.getindex(ci::NewCodeInfo, idx::Int) = ci.src.code[idx]
 Base.eltype(::NewCodeInfo) = Tuple{Int, Any}
 
 function Base.iterate(ci::NewCodeInfo, st::Int=1)
-    st > length(ci) && return
-    ci.pc += 1
+    if st > length(ci)
+        ci.pc = 0
+        return
+    end
+
+    ci.pc = st
     return (st, ci[st]), st + 1
 end
 
@@ -120,20 +130,16 @@ function Base.setindex!(ci::NewCodeInfo, stmt, v::Int)
 end
 
 function Base.insert!(ci::NewCodeInfo, v::Int, stmt)
-    insert!(ci.stmts, v, stmt)
-    ci.pc += 1
-    return NewSSAValue(ci.pc-1) # length(code) + 1
+    return insert!(ci.stmts, v, stmt)
 end
 
 function Base.delete!(ci::NewCodeInfo, v::Int)
-    ci.pc -= 1
     delete!(ci.stmts, v)
     return ci
 end
 
 function Base.push!(ci::NewCodeInfo, stmt)
-    ci.stmts[ci.pc] = Operation(Push, stmt)
-    return ci
+    return insert!(ci.stmts, ci.pc, stmt)
 end
 
 function emit_code(ci::NewCodeInfo)
@@ -162,7 +168,6 @@ function emit_code(ci::NewCodeInfo)
             elseif op.type == Push
                 push!(code, op.stmt)
                 push!(codelocs, loc)
-                need_push = false
             elseif op.type == Delete
                 changemap[v] -= 1
                 need_push = false
@@ -179,7 +184,7 @@ function emit_code(ci::NewCodeInfo)
     end
 
     Core.Compiler.renumber_ir_elements!(code, changemap)
-    replace_new_ssavalue!(code)
+    replace_new_ssavalue!(code, ci)
     return code, codelocs
 end
 
@@ -232,19 +237,34 @@ function update_slots(e, newslotmap, changemap)
     end
 end
 
-function replace_new_ssavalue(e)
+function replace_new_ssavalue(e, newssamap)
     @match e begin
-        NewSSAValue(id) => SSAValue(id)
-        GotoIfNot(NewSSAValue(id), dest) => GotoIfNot(SSAValue(id), dest)
-        ReturnNode(NewSSAValue(id)) => ReturnNode(SSAValue(id))
-        Expr(head, args...) => Expr(head, map(replace_new_ssavalue, args)...)
+        NewSSAValue(id) => SSAValue(newssamap[id])
+        GotoIfNot(NewSSAValue(id), dest) => GotoIfNot(SSAValue(newssamap[id]), dest)
+        ReturnNode(NewSSAValue(id)) => ReturnNode(SSAValue(newssamap[id]))
+        Expr(head, args...) => Expr(head, map(x->replace_new_ssavalue(x, newssamap), args)...)
         _ => e
     end
 end
 
-function replace_new_ssavalue!(code::Vector)
+function newssamap(ci::NewCodeInfo)
+    d = Dict{Int, Int}()
+    for v in 1:length(ci.src.code)
+        haskey(ci.stmts.newssa, v) || continue
+        newssavalues = ci.stmts.newssa[v]
+        shift = 0
+        for new in newssavalues
+            d[new.id] = v + shift
+            shift += 1
+        end
+    end
+    return d
+end
+
+function replace_new_ssavalue!(code::Vector, ci::NewCodeInfo)
+    map = newssamap(ci)
     for (v, stmt) in enumerate(code)
-        code[v] = replace_new_ssavalue(stmt)
+        code[v] = replace_new_ssavalue(stmt, map)
     end
     return code
 end
