@@ -154,7 +154,7 @@ function Base.push!(ci::NewCodeInfo, stmt)
     return insert_after!(ci.stmts, ci.pc, stmt)
 end
 
-function emit_code(ci::NewCodeInfo)
+function _emit_code_with_changemap(ci::NewCodeInfo)
     changemap = fill(0, length(ci))
     code, codelocs = [], Int32[]
 
@@ -194,9 +194,15 @@ function emit_code(ci::NewCodeInfo)
             push!(codelocs, loc)
         end
     end
+    return code, codelocs, changemap
+end
 
+function emit_code(ci::NewCodeInfo)
+    code, codelocs, changemap = _emit_code_with_changemap(ci)
     Core.Compiler.renumber_ir_elements!(code, changemap)
-    replace_new_ssavalue!(code, ci)
+    # NOTE: this must after renumber_ir_elements!
+    # since now the changemap is accumulated
+    replace_new_ssavalue!(code, ci, changemap)
     return code, codelocs
 end
 
@@ -259,22 +265,22 @@ function replace_new_ssavalue(e, newssamap)
     end
 end
 
-function newssamap(ci::NewCodeInfo)
+function newssamap(ci::NewCodeInfo, changemap::Vector{Int})
     d = Dict{Int, Int}()
     for v in 1:length(ci.src.code)
+        ssa = v + changemap[v]
         haskey(ci.stmts.newssa, v) || continue
         newssavalues = ci.stmts.newssa[v]
-        shift = 0
-        for new in newssavalues
-            d[new.id] = v + shift
-            shift += 1
+        for k in length(newssavalues):-1:1
+            new = newssavalues[k]
+            d[new.id] = ssa - k
         end
     end
     return d
 end
 
-function replace_new_ssavalue!(code::Vector, ci::NewCodeInfo)
-    map = newssamap(ci)
+function replace_new_ssavalue!(code::Vector, ci::NewCodeInfo, changemap::Vector{Int})
+    map = newssamap(ci, changemap)
     for (v, stmt) in enumerate(code)
         code[v] = replace_new_ssavalue(stmt, map)
     end

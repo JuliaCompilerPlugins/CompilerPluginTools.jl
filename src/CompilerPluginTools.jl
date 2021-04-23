@@ -4,7 +4,9 @@ using MLStyle
 using Expronicon
 
 export NewCodeInfo,
+    NewSlotNumber,
     JuliaLikeInterpreter,
+    AbstractInterpreter,
     # reexport SSA nodes from Core
     CodeInfo,
     SSAValue,
@@ -17,6 +19,11 @@ export NewCodeInfo,
     Argument,
     NewvarNode,
     ReturnNode,
+    InferenceState,
+    InferenceParams,
+    MethodResultPure,
+    CallMeta,
+    widenconst,
     # reexport IRCode types from Core
     NativeInterpreter,
     IRCode,
@@ -25,6 +32,8 @@ export NewCodeInfo,
     obtain_codeinfo,
     obtain_const,
     obtain_const_or_stmt,
+    isconstType,
+    compact!,
     # reflections
     code_ircode,
     code_ircode_by_mi,

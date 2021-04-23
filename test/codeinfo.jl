@@ -69,10 +69,22 @@ end
         push!(new, :(1 + 1))
         push!(new, :(1 + 2))
         push!(new, :(1 + 3))
+
+        for (v, stmt) in new
+            if v == 3
+                x = insert!(new, v, :(1 + 2))
+                new[v] = :(1 + $x)
+            end
+        end
+
         test_ci = finish(new)
         @test test_ci.code[1] == :(1 + 1)
         @test test_ci.code[2] == :(1 + 2)
         @test test_ci.code[3] == :(1 + 3)
+        @test test_ci.code[4] == Expr(:call, GlobalRef(Main, :>), SlotNumber(2), 0)
+        @test test_ci.code[5] == GotoIfNot(SSAValue(4), 9)
+        @test test_ci.code[6] == :(1 + 2)
+        @test test_ci.code[7] == :(1 + $(SSAValue(6)))
     end
 
     @testset "multiple insert!(new, 2, ...)" begin
