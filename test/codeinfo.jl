@@ -62,4 +62,16 @@ end
         @test nci.code[2] == GotoIfNot(SSAValue(1), 5)
         @test nci.slotnames == [Symbol("#b#"), Symbol("#a#"), Symbol("#self#"), :x]
     end
+
+    @testset "pc=0 push" begin
+        ci = code_lowered(foo, (Float64, ))[1]
+        new = NewCodeInfo(ci)
+        push!(new, :(1 + 1))
+        push!(new, :(1 + 2))
+        push!(new, :(1 + 3))
+        test_ci = finish(new)
+        @test test_ci.code[1] == :(1 + 1)
+        @test test_ci.code[2] == :(1 + 2)
+        @test test_ci.code[3] == :(1 + 3)
+    end
 end

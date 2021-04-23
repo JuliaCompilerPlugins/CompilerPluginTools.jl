@@ -107,7 +107,7 @@ mutable struct NewCodeInfo
 end
 
 function NewCodeInfo(ci::CodeInfo)
-    NewCodeInfo(ci, 0, SlotRecord(ci), StmtRecord())
+    NewCodeInfo(ci, 1, SlotRecord(ci), StmtRecord())
 end
 
 Base.length(ci::NewCodeInfo) = length(ci.src.code)
@@ -116,7 +116,7 @@ Base.eltype(::NewCodeInfo) = Tuple{Int, Any}
 
 function Base.iterate(ci::NewCodeInfo, st::Int=1)
     if st > length(ci)
-        ci.pc = 0
+        ci.pc = 1
         return
     end
 
