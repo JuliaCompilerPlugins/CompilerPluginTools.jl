@@ -98,5 +98,25 @@ end
         @test test_ci.code[4] == :(1 + 1)
         @test test_ci.code[3] == :(1 + 2)
         @test test_ci.code[2] == :(1 + 3)
-    end    
+    end
+
+    @testset "multiple push!(new, ...) with setindex" begin
+        ci = code_lowered(foo, (Float64, ))[1]
+        new = NewCodeInfo(ci)
+        push!(new, :(1 + 1))
+        push!(new, :(1 + 2))
+        push!(new, :(1 + 3))
+
+        for (v, stmt) in new
+            if v == 3
+                x = push!(new, :(1 + 2))
+                x = push!(new, :(1 + 3))
+                x = push!(new, :(1 + $x))
+                new[v] = :(1 + $x)
+            end
+        end
+
+        test_ci = finish(new)
+        @test test_ci.code[9] == :(1 + $(SSAValue(8)))
+    end
 end

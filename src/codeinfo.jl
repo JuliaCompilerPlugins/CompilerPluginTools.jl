@@ -271,9 +271,8 @@ function newssamap(ci::NewCodeInfo, changemap::Vector{Int})
         ssa = v + changemap[v]
         haskey(ci.stmts.newssa, v) || continue
         newssavalues = ci.stmts.newssa[v]
-        for k in length(newssavalues):-1:1
-            new = newssavalues[k]
-            d[new.id] = ssa - k
+        for (k, new) in enumerate(newssavalues)
+            d[new.id] = ssa - length(newssavalues) + k - 1
         end
     end
     return d
