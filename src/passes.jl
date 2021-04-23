@@ -54,7 +54,7 @@ function permute_stmt(e, perm::Vector{Int})
             # dest = findfirst(isequal(dest), perm)
             return GotoIfNot(cond, dest)
         @case GotoNode(label)
-            return GotoNode(SSAValue(findfirst(isequal(label), perm)))
+            return GotoNode(findfirst(isequal(label), perm))
         @case ReturnNode(val)
             return ReturnNode(permute_stmt(val, perm))
         @case _

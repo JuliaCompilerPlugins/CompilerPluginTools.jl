@@ -9,9 +9,9 @@ using CompilerPluginTools
 @intrinsic_stub device ctrl(gate, loc::Int, ctrl::Int)
 end
 
-@test TestIntrinsic.isintrinsic(:main)
-@test TestIntrinsic.isintrinsic(:ctrl)
-@test TestIntrinsic.isintrinsic(:gate)
+@test TestIntrinsic.isintrinsic(TestIntrinsic.main)
+@test TestIntrinsic.isintrinsic(TestIntrinsic.ctrl)
+@test TestIntrinsic.isintrinsic(TestIntrinsic.gate)
 
 @test_throws IntrinsicError TestIntrinsic.main(:gate)
 @test_throws IntrinsicError TestIntrinsic.gate(:gate, 1)
