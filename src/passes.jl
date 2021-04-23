@@ -138,14 +138,19 @@ function inline_const!(ir::IRCode)
                 t isa Const || continue
                 ir.stmts[i][:inst] = quoted(t.val)
                 ir.stmts[i][:type] = t
-            @case Expr(:call, _...)
-                sig = Core.Compiler.call_sig(ir, stmt)
+            @case Expr(:call, f, args...)
+                new_stmt = Expr(:call, f, map(eval_global, args)...)
+                sig = Core.Compiler.call_sig(ir, new_stmt)
                 if is_const_call_inlineable(sig)
                     fargs = anymap(x::Const -> x.val, sig.atypes[2:end])
                     val = sig.f(fargs...)
                     ir.stmts[i][:inst] = quoted(val)
                     ir.stmts[i][:type] = Const(val)
+                else
+                    ir.stmts[i][:inst] = new_stmt
                 end
+            @case Expr(:invoke, mi, f, args...)
+                ir.stmts[i][:inst] = Expr(:invoke, mi, f, map(eval_global, args)...)
             @case Expr(:new, t, args...)
                 allconst = all(x->is_arg_allconst(ir, x), args)
                 allconst && isconcretetype(t) && !t.mutable || continue
@@ -160,6 +165,17 @@ function inline_const!(ir::IRCode)
     return ir
 end
 
+function eval_global(x)
+    @switch x begin
+        @case GlobalRef(mod, name)
+            t = Core.Compiler.abstract_eval_global(mod, name)
+            t isa Const || return x
+            return quoted(t.val)
+        @case _
+            return x
+    end
+end
+
 """
     const_invoke!(f, ir::IRCode, ref::GlobalRef)
 
@@ -171,7 +187,7 @@ function const_invoke!(f, ir::IRCode, ref::GlobalRef)
         stmt = ir.stmts[i][:inst]
         
         @switch stmt begin
-            @case Expr(:invoke, _, ref, args...)
+            @case Expr(:invoke, _, &ref, args...)
                 if all(x->is_arg_allconst(ir, x), args)
                     args = anymap(x->unwrap_arg(ir, x), args)
                     val = f(args...)
