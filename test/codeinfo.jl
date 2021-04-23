@@ -63,7 +63,7 @@ end
         @test nci.slotnames == [Symbol("#b#"), Symbol("#a#"), Symbol("#self#"), :x]
     end
 
-    @testset "pc=0 push" begin
+    @testset "pc=1 multi push" begin
         ci = code_lowered(foo, (Float64, ))[1]
         new = NewCodeInfo(ci)
         push!(new, :(1 + 1))
@@ -74,4 +74,17 @@ end
         @test test_ci.code[2] == :(1 + 2)
         @test test_ci.code[3] == :(1 + 3)
     end
+
+    @testset "multiple insert!(new, 2, ...)" begin
+        ci = code_lowered(foo, (Float64, ))[1]
+        new = NewCodeInfo(ci)
+        insert!(new, 2, :(1 + 1))
+        insert!(new, 2, :(1 + 2))
+        insert!(new, 2, :(1 + 3))
+        test_ci = finish(new)
+    
+        @test test_ci.code[4] == :(1 + 1)
+        @test test_ci.code[3] == :(1 + 2)
+        @test test_ci.code[2] == :(1 + 3)
+    end    
 end

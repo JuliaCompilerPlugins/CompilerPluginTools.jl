@@ -79,7 +79,19 @@ function Base.setindex!(rc::StmtRecord, stmt, v)
     return stmt
 end
 
-function Base.insert!(rc::StmtRecord, v, stmt)
+function insert_before!(rc::StmtRecord, v, stmt)
+    pushfirst!(
+        get!(rc.data, v, Operation[]),
+        Operation(Insert, stmt)
+    )
+
+    rc.counter += 1
+    var = NewSSAValue(rc.counter) # length(code) + 1
+    pushfirst!(get!(rc.newssa, v, NewSSAValue[]), var)
+    return var
+end
+
+function insert_after!(rc::StmtRecord, v, stmt)
     push!(
         get!(rc.data, v, Operation[]),
         Operation(Insert, stmt)
@@ -130,7 +142,7 @@ function Base.setindex!(ci::NewCodeInfo, stmt, v::Int)
 end
 
 function Base.insert!(ci::NewCodeInfo, v::Int, stmt)
-    return insert!(ci.stmts, v, stmt)
+    return insert_before!(ci.stmts, v, stmt)
 end
 
 function Base.delete!(ci::NewCodeInfo, v::Int)
@@ -139,7 +151,7 @@ function Base.delete!(ci::NewCodeInfo, v::Int)
 end
 
 function Base.push!(ci::NewCodeInfo, stmt)
-    return insert!(ci.stmts, ci.pc, stmt)
+    return insert_after!(ci.stmts, ci.pc, stmt)
 end
 
 function emit_code(ci::NewCodeInfo)
