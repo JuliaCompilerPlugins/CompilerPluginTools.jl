@@ -141,6 +141,7 @@ function inline_const!(ir::IRCode)
             @case Expr(:call, f, args...)
                 new_stmt = Expr(:call, f, map(eval_global, args)...)
                 sig = Core.Compiler.call_sig(ir, new_stmt)
+                sig === nothing && continue
                 if is_const_call_inlineable(sig)
                     fargs = anymap(x::Const -> x.val, sig.atypes[2:end])
                     val = sig.f(fargs...)
