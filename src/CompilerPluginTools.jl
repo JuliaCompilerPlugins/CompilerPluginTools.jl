@@ -3,12 +3,15 @@ module CompilerPluginTools
 using MLStyle
 using Expronicon
 
-export NewCodeInfo,
+export
+    # interp
+    NewCodeInfo,
     NewSlotNumber,
     JuliaLikeInterpreter,
     AbstractInterpreter,
     isintrinsic,
     # reexport SSA nodes from Core
+    MethodInstance,
     CodeInfo,
     SSAValue,
     Const,
@@ -50,6 +53,8 @@ export NewCodeInfo,
     const_invoke!,
     finish,
     IntrinsicError,
+    # utils
+    method_instance,
     @make_codeinfo,
     @make_ircode,
     @intrinsic_stub

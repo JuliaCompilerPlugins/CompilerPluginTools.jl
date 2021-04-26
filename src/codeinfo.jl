@@ -249,6 +249,8 @@ function update_slots(e, newslotmap, changemap)
     @match e begin
         SlotNumber(id) => SlotNumber(id + changemap[id])
         NewSlotNumber(id) => SlotNumber(newslotmap[id])
+        ReturnNode(x) => ReturnNode(update_slots(x, newslotmap, changemap))
+        GotoIfNot(cond, dest) => GotoIfNot(update_slots(cond, newslotmap, changemap), dest)
         NewvarNode(SlotNumber(id)) => NewvarNode(SlotNumber(id+slotmap[id]))
         Expr(head, args...) => Expr(head, map(x->update_slots(x, newslotmap, changemap), e.args)...)
         _ => e

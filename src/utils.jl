@@ -59,3 +59,18 @@ function make_codeinfo_m(ex)
     end
 end
 
+"""
+    method_instance(f, tt, world=Base.get_world_counter())
+
+Return the `MethodInstance`, unlike `Base.method_instances`, `tt` must be specified type.
+"""
+function method_instance(@nospecialize(f), @nospecialize(tt), world=Base.get_world_counter())
+    # get the method instance
+    meth = which(f, tt)
+    sig = Base.signature_type(f, tt)::Type
+    (ti, env) = ccall(:jl_type_intersection_with_env, Any, (Any, Any), sig,
+        meth.sig)::Core.SimpleVector
+    meth = Base.func_for_method_checked(meth, ti, env)
+    return ccall(:jl_specializations_get_linfo, Ref{Core.MethodInstance},
+        (Any, Any, Any, UInt), meth, ti, env, world)
+end
