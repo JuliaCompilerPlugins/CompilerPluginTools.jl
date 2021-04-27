@@ -22,11 +22,18 @@ function intrinsic_stub_m(mod::Module, ctxname::Symbol, ex::Expr)
         end
     )
 
-    isintrinsic_def = isdefined(mod, :isintrinsic) ? nothing :
-        :(isintrinsic(x) = false)
+    isintrinsic_def = if isdefined(mod, :__INTRINSICS__)
+        nothing
+    else
+        quote
+            const __INTRINSICS__ = Set{Any}()
+            isintrinsic(x) = x in __INTRINSICS__
+        end
+    end
+
     quote
         $isintrinsic_def
         @noinline $(codegen_ast(jlfn))
-        isintrinsic(::typeof($(jlfn.name))) = true
+        push!(__INTRINSICS__, $(jlfn.name))
     end
 end
