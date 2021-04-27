@@ -79,34 +79,62 @@ macro test_codeinfo(ci, ex)
     esc(test_codeinfo_m(ci, ex))
 end
 
+function rm_code_coverage_effect(ci::CodeInfo)
+    # make sure we don't change original one
+    new = NewCodeInfo(copy(ci))
+    for (v, stmt) in new
+        if Meta.isexpr(stmt, :code_coverage_effect)
+            delete!(new, v)
+        end
+    end
+    new_ci = finish(new)
+
+    if ci.ssavaluetypes isa Vector
+        types = []
+        for (v, stmt) in enumerate(ci.code)
+            if !Meta.isexpr(stmt, :code_coverage_effect)
+                push!(types, ci.ssavaluetypes[v])
+            end
+        end
+
+        new_ci.ssavaluetypes = types
+        new_ci.inferred = ci.inferred
+    end
+    return new_ci
+end
+
 function test_codeinfo_m(ci, ex::Expr)
     Meta.isexpr(ex, :block) || error("expect a begin ... end")
-    ret = Expr(:block)
+    @gensym nocodedov_ci
+
+    ret = quote
+        $nocodedov_ci = $CompilerPluginTools.rm_code_coverage_effect($ci)
+    end
     stmt_count = 1
     for each in ex.args
         @switch each begin
             @case :($stmt::$type)
                 push!(ret.args, quote
-                    @test $MLStyle.@match $ci.code[$stmt_count] begin
+                    @test $MLStyle.@match $nocodedov_ci.code[$stmt_count] begin
                         $stmt => true
                         _ => false
                     end
                 end)
                 push!(ret.args, quote
-                    @test $ci.ssavaluetypes[$stmt_count] == $type
+                    @test $nocodedov_ci.ssavaluetypes[$stmt_count] == $type
                 end)
                 stmt_count += 1
             @case ::LineNumberNode
                 continue
             @case _
                 push!(ret.args, quote
-                    @test $MLStyle.@match $ci.code[$stmt_count] begin
+                    @test $MLStyle.@match $nocodedov_ci.code[$stmt_count] begin
                         $each => true
                         _ => false
                     end
                 end)
                 stmt_count += 1
-        end        
+        end
     end
     return ret
 end

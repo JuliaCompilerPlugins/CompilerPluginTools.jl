@@ -127,3 +127,32 @@ end
         @test test_ci.code[9] == :(1 + $(SSAValue(8)))
     end
 end
+
+@testset "rm_code_coverage_effect" begin
+    ci = @make_codeinfo begin
+        #=%1 =# Expr(:code_coverage_effect)::Nothing
+        #=%2 =# QuoteNode(1.0)::Float64
+        #=%3 =# Expr(:call, sin, SSAValue(2))::Float64
+        #=%4 =# Expr(:code_coverage_effect)::Nothing
+        #=%5 =# QuoteNode(2.0)::Float64
+        #=%6 =# Expr(:call, sin, SSAValue(5))::Float64
+        #=%7 =# Expr(:code_coverage_effect)::Nothing
+        #=%8 =# Expr(:call, <, SSAValue(6), QuoteNode(1.0))::Bool
+        #=%9 =# GotoIfNot(SSAValue(8), 10)
+        #=%10=# Expr(:call, +, SSAValue(3), SSAValue(6))::Float64
+        #=%11=# ReturnNode(SSAValue(10))::Float64
+    end
+
+    test_ci = CompilerPluginTools.rm_code_coverage_effect(ci)
+
+    @test_codeinfo test_ci begin
+        #=%1=# QuoteNode(1.0)::Float64
+        #=%2=# Expr(:call, sin, SSAValue(1))::Float64
+        #=%3=# QuoteNode(2.0)::Float64
+        #=%4=# Expr(:call, sin, SSAValue(3))::Float64
+        #=%5=# Expr(:call, <, SSAValue(4), QuoteNode(1.0))::Bool
+        #=%6=# GotoIfNot(SSAValue(5), 7)
+        #=%7=# Expr(:call, +, SSAValue(2), SSAValue(4))::Float64
+        #=%8=# ReturnNode(SSAValue(7))::Float64     
+    end
+end
