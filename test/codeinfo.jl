@@ -20,12 +20,14 @@ end
         end
     end
 
-    @test test_ci.code[1] == :(overdub($(GlobalRef(Main, :>)), $(SlotNumber(2)), 0))
-    @test test_ci.code[2] isa GotoIfNot
-    @test test_ci.code[3] == :(overdub($(GlobalRef(Main, :*)), 2, $(SlotNumber(2))))
-    @test test_ci.code[4] == ReturnNode(SSAValue(3))
-    @test test_ci.code[5] == :(overdub($(GlobalRef(Main, :*)), 3, $(SlotNumber(2))))
-    @test test_ci.code[6] == ReturnNode(SSAValue(5))
+    @test_codeinfo test_ci begin
+        :(overdub($(GlobalRef(Main, :>)), $(SlotNumber(2)), 0))
+        ::GotoIfNot
+        :(overdub($(GlobalRef(Main, :*)), 2, $(SlotNumber(2))))
+        ReturnNode(SSAValue(3))
+        :(overdub($(GlobalRef(Main, :*)), 3, $(SlotNumber(2))))
+        ReturnNode(SSAValue(5))
+    end
 end
 
 @testset "NewCodeInfo" begin
@@ -45,12 +47,17 @@ end
     end
     test_ci = finish(new)
 
-    @test test_ci.code[1] == :(1 + 1)
-    @test test_ci.code[2] isa GotoIfNot
-    @test test_ci.code[3] == "variable: %3"
-    @test test_ci.code[4] == :(overdub($(SSAValue(3)), $(GlobalRef(Main, :*)), 2, $(SlotNumber(2))))
-    @test test_ci.code[5] == ReturnNode(SSAValue(4))
-    @test test_ci.code[6] == "variable: %5"
+    @test_codeinfo test_ci begin
+        :(1 + 1)
+        ::GotoIfNot
+
+        "variable: %3"
+    
+        :(overdub($(SSAValue(3)), $(GlobalRef(Main, :*)), 2, $(SlotNumber(2))))
+        ReturnNode(SSAValue(4))
+    
+        "variable: %5"
+    end
 
     @testset "slot insertion" begin
         ci = code_lowered(foo, (Float64, ))[1]

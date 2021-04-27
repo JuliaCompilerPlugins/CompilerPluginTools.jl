@@ -57,6 +57,7 @@ export
     method_instance,
     @make_codeinfo,
     @make_ircode,
+    @test_codeinfo,
     @intrinsic_stub
 
 using Base:

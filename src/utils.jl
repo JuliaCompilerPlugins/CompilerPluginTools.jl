@@ -74,3 +74,39 @@ function method_instance(@nospecialize(f), @nospecialize(tt), world=Base.get_wor
     return ccall(:jl_specializations_get_linfo, Ref{Core.MethodInstance},
         (Any, Any, Any, UInt), meth, ti, env, world)
 end
+
+macro test_codeinfo(ci, ex)
+    esc(test_codeinfo_m(ci, ex))
+end
+
+function test_codeinfo_m(ci, ex::Expr)
+    Meta.isexpr(ex, :block) || error("expect a begin ... end")
+    ret = Expr(:block)
+    stmt_count = 1
+    for each in ex.args
+        @switch each begin
+            @case :($stmt::$type)
+                push!(ret.args, quote
+                    @test $MLStyle.@match $ci.code[$stmt_count] begin
+                        $stmt => true
+                        _ => false
+                    end
+                end)
+                push!(ret.args, quote
+                    @test $ci.ssavaluetypes[$stmt_count] == $type
+                end)
+                stmt_count += 1
+            @case ::LineNumberNode
+                continue
+            @case _
+                push!(ret.args, quote
+                    @test $MLStyle.@match $ci.code[$stmt_count] begin
+                        $each => true
+                        _ => false
+                    end
+                end)
+                stmt_count += 1
+        end        
+    end
+    return ret
+end
