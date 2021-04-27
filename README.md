@@ -21,7 +21,7 @@ CompilerPluginTools is a &nbsp;
 </p>
 
 ```julia
-pkg> add CompilerPluginTools#master
+pkg> add CompilerPluginTools
 ```
 
 ## License
