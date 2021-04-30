@@ -202,3 +202,17 @@ function const_invoke!(f, ir::IRCode, ref::GlobalRef)
     end
     return ir
 end
+
+function contains_const_invoke!(ir::IRCode, ref::GlobalRef)
+    for i in 1:length(ir.stmts)
+        stmt = ir.stmts[i][:inst]
+
+        @switch stmt begin
+            @case Expr(:invoke, _, &ref, args...)
+                all(x->is_arg_allconst(ir, x), args) && return true
+            @case _
+                nothing
+        end
+    end
+    return false
+end
