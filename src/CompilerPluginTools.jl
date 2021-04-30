@@ -51,7 +51,7 @@ export
     inline_const!,
     permute_stmts!,
     const_invoke!,
-    contains_const_invoke!,
+    contains_const_invoke,
     finish,
     IntrinsicError,
     # utils

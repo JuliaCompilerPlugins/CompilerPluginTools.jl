@@ -203,7 +203,7 @@ function const_invoke!(f, ir::IRCode, ref::GlobalRef)
     return ir
 end
 
-function contains_const_invoke!(ir::IRCode, ref::GlobalRef)
+function contains_const_invoke(ir::IRCode, ref::GlobalRef)
     for i in 1:length(ir.stmts)
         stmt = ir.stmts[i][:inst]
 
