@@ -101,3 +101,7 @@ Base.iterate(p::Core.Compiler.Pair) = Core.Compiler.iterate(p)
 Base.iterate(p::Core.Compiler.Pair, st) = Core.Compiler.iterate(p, st)
 
 Base.getindex(m::Core.Compiler.MethodLookupResult, idx::Int) = Core.Compiler.getindex(m, idx)
+
+Base.length(x::Core.Compiler.BitSet) = Core.Compiler.length(x)
+Base.iterate(x::Core.Compiler.BitSet) = Core.Compiler.iterate(x)
+Base.iterate(x::Core.Compiler.BitSet, st) = Core.Compiler.iterate(x, st)

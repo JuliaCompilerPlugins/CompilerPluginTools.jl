@@ -156,3 +156,27 @@ end
         #=%8=# ReturnNode(SSAValue(7))::Float64     
     end
 end
+
+@testset "test code_coverage_effect bb start" begin
+    ci = @make_codeinfo begin
+        Expr(:code_coverage_effect)::Nothing
+        Expr(:code_coverage_effect)::Nothing
+        Expr(:code_coverage_effect)::Nothing
+        Expr(:code_coverage_effect)::Nothing
+        Expr(:call, GlobalRef(Main, :foo), 2)::Nothing
+        Expr(:call, GlobalRef(Main, :measure), 2)::Int
+        Expr(:code_coverage_effect)::Nothing
+        Expr(:code_coverage_effect)::Nothing
+        Expr(:call, GlobalRef(Main, :measure_cmp), SSAValue(6), 1)::Bool
+        GotoIfNot(SSAValue(9), 14)
+        Expr(:code_coverage_effect)::Nothing
+        Expr(:code_coverage_effect)::Nothing
+        Expr(:call, GlobalRef(Main, :foo), 2)::Nothing
+        Expr(:code_coverage_effect)::Nothing
+        ReturnNode(nothing)::Nothing
+    end
+
+    stmt = CompilerPluginTools.rm_code_coverage_effect(ci).code[4]
+    @test stmt.cond == SSAValue(3)
+    @test stmt.dest == 6
+end

@@ -85,6 +85,18 @@ function rm_code_coverage_effect(ci::CodeInfo)
     for (v, stmt) in new
         if Meta.isexpr(stmt, :code_coverage_effect)
             delete!(new, v)
+        elseif stmt isa GotoIfNot
+            # idx always exists since code_coverage_effect was inserted
+            idx = findfirst(stmt.dest:length(ci.code)) do k
+                !Meta.isexpr(ci.code[k], :code_coverage_effect)
+            end
+            new[v] = GotoIfNot(stmt.cond, stmt.dest+idx-1)
+        elseif stmt isa GotoNode
+            # idx always exists since code_coverage_effect was inserted
+            idx = findfirst(stmt.label:length(ci.code)) do k
+                !Meta.isexpr(ci.code[k], :code_coverage_effect)
+            end
+            new[v] = GotoNode(stmt.label+idx-1)
         end
     end
     new_ci = finish(new)
