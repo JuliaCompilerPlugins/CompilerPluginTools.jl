@@ -154,7 +154,7 @@ function inline_const!(ir::IRCode)
                 ir.stmts[i][:inst] = Expr(:invoke, mi, f, map(eval_global, args)...)
             @case Expr(:new, t, args...)
                 allconst = all(x->is_arg_allconst(ir, x), args)
-                allconst && isconcretetype(t) && !t.mutable || continue
+                allconst && isconcretetype(t) && !ismutable(t) || continue
                 args = anymap(arg->unwrap_arg(ir, arg), args)
                 val = ccall(:jl_new_structv, Any, (Any, Ptr{Cvoid}, UInt32), t, args, length(args))
                 ir.stmts[i][:inst] = quoted(val)
