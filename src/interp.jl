@@ -38,8 +38,8 @@ Core.Compiler.add_remark!(::JuliaLikeInterpreter, ::Core.Compiler.InferenceState
 end
 
 function Core.Compiler.optimize(interp::JuliaLikeInterpreter, opt::OptimizationState, params::OptimizationParams, @nospecialize(result))
-    nargs = Int(opt.nargs) - 1
     @static if VERSION < v"1.8-"
+        nargs = Int(opt.nargs) - 1
         ir = Core.Compiler.run_passes(opt.src, nargs, opt)
     else
         ir = Core.Compiler.run_passes(opt.src, opt)

@@ -97,8 +97,10 @@ Base.getindex(ref::UseRef) = Core.Compiler.getindex(ref)
 Base.iterate(uses::UseRefIterator) = Core.Compiler.iterate(uses)
 Base.iterate(uses::UseRefIterator, st) = Core.Compiler.iterate(uses, st)
 
+@static if VERSION < v"1.8-"
 Base.iterate(p::Core.Compiler.Pair) = Core.Compiler.iterate(p)
 Base.iterate(p::Core.Compiler.Pair, st) = Core.Compiler.iterate(p, st)
+end
 
 Base.getindex(m::Core.Compiler.MethodLookupResult, idx::Int) = Core.Compiler.getindex(m, idx)
 

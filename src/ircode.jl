@@ -48,24 +48,39 @@ Return the `IRCode` object along with inferred return type.
 function code_ircode_by_mi(f, mi::MethodInstance; world=get_world_counter(), interp=NativeInterpreter(world))
     return typeinf_lock() do
         result = Core.Compiler.InferenceResult(mi)
-        frame = Core.Compiler.InferenceState(result, false, interp)
+        @static if VERSION < v"1.8-"
+            frame = Core.Compiler.InferenceState(result, false, interp)
+        else
+            frame = Core.Compiler.InferenceState(result, :global, interp)
+        end
         frame === nothing && return nothing
 
         if typeinf(interp, frame)
             opt_params = OptimizationParams(interp)
-            opt = OptimizationState(frame, opt_params, interp)
-            preserve_coverage = coverage_enabled(opt.mod)
-            ci = opt.src; nargs = opt.nargs - 1;
-            ir = convert_to_ircode(ci, copy_exprargs(ci.code), preserve_coverage, nargs, opt)
-            ir = slot2reg(ir, ci, nargs, opt)
+            sv = OptimizationState(frame, opt_params, interp)
+            preserve_coverage = coverage_enabled(sv.mod)
+            @static if VERSION < v"1.8-"
+                ci = sv.src; nargs = sv.nargs - 1;
+                ir = convert_to_ircode(ci, copy_exprargs(ci.code), preserve_coverage, nargs, sv)
+                ir = slot2reg(ir, ci, nargs, sv)
+            else
+                ci = sv.src
+                ir = convert_to_ircode(ci, sv)
+                ir = slot2reg(ir, ci, sv)
+            end
             # passes
-            ir = f(ir, opt)
-            opt.src.inferred = true
+            ir = f(ir, sv)
+            sv.src.inferred = true
         end
 
         frame.inferred || return nothing
-        # TODO(yhls): Fix this upstream
-        resize!(ir.argtypes, opt.nargs)
+        @static if VERSION < v"1.8-"
+            resize!(ir.argtypes, sv.nargs)
+        else
+            svdef = sv.linfo.def
+            nargs = isa(svdef, Method) ? Int(svdef.nargs) : 0
+            resize!(ir.argtypes, nargs)
+        end
         return ir => widenconst(result.result)
     end
 end
