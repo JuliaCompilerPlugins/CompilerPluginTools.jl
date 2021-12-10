@@ -13,7 +13,7 @@ end
         GlobalRef(Main, :GLOBAL_CONST)::Float64
         ReturnNode(SSAValue(1))::Float64
     end
-    
+
     ir = inline_const!(ir)
     @test ir.stmts[1][:inst] == 1.0
     @test ir.stmts[1][:type] == Const(1.0)
@@ -25,7 +25,7 @@ end
         Expr(:new, Foo, 2)::Foo
         ReturnNode(SSAValue(1))::Float64
     end
-    
+
     ir = inline_const!(ir)
 
     @test ir.stmts[2][:inst] == QuoteNode(Foo(2))
@@ -48,6 +48,14 @@ end
     @test ir.stmts[1][:inst] == (1, 2, 3)
     @test ir.stmts[1][:type] == Const((1, 2, 3))
 end
+
+ir = @make_ircode begin
+    Expr(:call, Core.Intrinsics.abs_float, 1.0)::Float64
+    Expr(:new, Foo, 2)::Foo
+    ReturnNode(SSAValue(1))::Float64
+end
+
+ir = inline_const!(ir)
 
 @testset "permute_stmts!" begin
     ir = @make_ircode begin

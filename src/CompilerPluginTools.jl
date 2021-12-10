@@ -137,6 +137,7 @@ using Core.Compiler:
     retrieve_code_info,
     slot2reg
 
+include("compat.jl")
 include("utils.jl")
 include("patches.jl")
 include("codeinfo.jl")
