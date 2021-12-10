@@ -128,7 +128,6 @@ using Core.Compiler:
     # Julia passes
     compact!,
     ssa_inlining_pass!,
-    getfield_elim_pass!,
     adce_pass!,
     type_lift_pass!,
     verify_linetable,

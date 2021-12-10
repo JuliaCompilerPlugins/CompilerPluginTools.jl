@@ -14,7 +14,13 @@ function default_julia_pass(ir::IRCode, sv::OptimizationState)
     ir = compact!(ir)
     ir = ssa_inlining_pass!(ir, ir.linetable, sv.inlining, sv.src.propagate_inbounds)
     ir = compact!(ir)
-    ir = getfield_elim_pass!(ir)
+
+    @static if VERSION < v"1.8-"
+        ir = Core.Compiler.getfield_elim_pass!(ir)
+    else
+        ir = Core.Compiler.sroa_pass!(ir)
+    end
+
     ir = adce_pass!(ir)
     ir = type_lift_pass!(ir)
     ir = compact!(ir)
