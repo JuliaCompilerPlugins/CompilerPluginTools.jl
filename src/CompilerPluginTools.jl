@@ -113,7 +113,6 @@ using Core.Compiler:
     isconcretetype,
     widenconst,
     isdispatchtuple,
-    isinlineable,
     is_inlineable_constant,
     copy_exprargs,
     convert_to_ircode,
