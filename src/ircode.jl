@@ -51,7 +51,7 @@ function code_ircode_by_mi(f, mi::MethodInstance; world=get_world_counter(), int
         @static if VERSION < v"1.8-"
             frame = Core.Compiler.InferenceState(result, false, interp)
         else
-            frame = Core.Compiler.InferenceState(result, :global, interp)
+            frame = Core.Compiler.InferenceState(result, :local, interp)
         end
         frame === nothing && return nothing
 
