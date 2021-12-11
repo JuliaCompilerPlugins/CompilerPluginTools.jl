@@ -113,7 +113,6 @@ using Core.Compiler:
     isconcretetype,
     widenconst,
     isdispatchtuple,
-    isinlineable,
     is_inlineable_constant,
     copy_exprargs,
     convert_to_ircode,
@@ -129,7 +128,6 @@ using Core.Compiler:
     # Julia passes
     compact!,
     ssa_inlining_pass!,
-    getfield_elim_pass!,
     adce_pass!,
     type_lift_pass!,
     verify_linetable,
@@ -137,6 +135,7 @@ using Core.Compiler:
     retrieve_code_info,
     slot2reg
 
+include("compat.jl")
 include("utils.jl")
 include("patches.jl")
 include("codeinfo.jl")

@@ -14,7 +14,13 @@ function default_julia_pass(ir::IRCode, sv::OptimizationState)
     ir = compact!(ir)
     ir = ssa_inlining_pass!(ir, ir.linetable, sv.inlining, sv.src.propagate_inbounds)
     ir = compact!(ir)
-    ir = getfield_elim_pass!(ir)
+
+    @static if VERSION < v"1.8-"
+        ir = Core.Compiler.getfield_elim_pass!(ir)
+    else
+        ir = Core.Compiler.sroa_pass!(ir)
+    end
+
     ir = adce_pass!(ir)
     ir = type_lift_pass!(ir)
     ir = compact!(ir)
@@ -77,9 +83,15 @@ function permute_stmts!(ir::IRCode, perm::Vector{Int})
     return ir
 end
 
+@static if VERSION < v"1.8-"
+    argtypes(sig::Signature) = sig.atypes
+else
+    argtypes(sig::Signature) = sig.argtypes
+end
+
 function is_allconst(sig::Signature)
     allconst = true
-    for atype in sig.atypes
+    for atype in argtypes(sig)
         if !isa(atype, Const)
             allconst = false
             break
@@ -101,7 +113,7 @@ end
 
 function is_const_call_inlineable(sig::Signature)
     is_allconst(sig) || return false
-    f, ft, atypes = sig.f, sig.ft, sig.atypes
+    f, ft, atypes = sig.f, sig.ft, argtypes(sig)
     
     if isa(f, IntrinsicFunction) && is_pure_intrinsic_infer(f) && intrinsic_nothrow(f, atypes[2:end])
         return true
@@ -143,7 +155,7 @@ function inline_const!(ir::IRCode)
                 sig = Core.Compiler.call_sig(ir, new_stmt)
                 sig === nothing && continue
                 if is_const_call_inlineable(sig)
-                    fargs = anymap(x::Const -> x.val, sig.atypes[2:end])
+                    fargs = anymap(x::Const -> x.val, argtypes(sig)[2:end])
                     val = sig.f(fargs...)
                     ir.stmts[i][:inst] = quoted(val)
                     ir.stmts[i][:type] = Const(val)
@@ -154,7 +166,7 @@ function inline_const!(ir::IRCode)
                 ir.stmts[i][:inst] = Expr(:invoke, mi, f, map(eval_global, args)...)
             @case Expr(:new, t, args...)
                 allconst = all(x->is_arg_allconst(ir, x), args)
-                allconst && isconcretetype(t) && !t.mutable || continue
+                allconst && isconcretetype(t) && !ismutabletype(t) || continue
                 args = anymap(arg->unwrap_arg(ir, arg), args)
                 val = ccall(:jl_new_structv, Any, (Any, Ptr{Cvoid}, UInt32), t, args, length(args))
                 ir.stmts[i][:inst] = quoted(val)

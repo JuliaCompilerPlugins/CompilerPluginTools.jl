@@ -38,10 +38,15 @@ Core.Compiler.add_remark!(::JuliaLikeInterpreter, ::Core.Compiler.InferenceState
 end
 
 function Core.Compiler.optimize(interp::JuliaLikeInterpreter, opt::OptimizationState, params::OptimizationParams, @nospecialize(result))
-    nargs = Int(opt.nargs) - 1
-    ir = Core.Compiler.run_passes(opt.src, nargs, opt)
+    @static if VERSION < v"1.8-"
+        nargs = Int(opt.nargs) - 1
+        ir = Core.Compiler.run_passes(opt.src, nargs, opt)
+    else
+        ir = Core.Compiler.run_passes(opt.src, opt)
+    end
+
     ir = optimize(interp, opt, ir)
-    if VERSION < v"1.7-DEV"
+    @static if VERSION < v"1.7-DEV"
         Core.Compiler.finish(opt, params, ir, result)
     else
         Core.Compiler.finish(interp, opt, params, ir, result)
