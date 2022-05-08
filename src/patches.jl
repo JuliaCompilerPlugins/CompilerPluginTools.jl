@@ -97,7 +97,7 @@ Base.getindex(ref::UseRef) = Core.Compiler.getindex(ref)
 Base.iterate(uses::UseRefIterator) = Core.Compiler.iterate(uses)
 Base.iterate(uses::UseRefIterator, st) = Core.Compiler.iterate(uses, st)
 
-@static if VERSION < v"1.8-"
+@static if VERSION < v"1.7-"
 Base.iterate(p::Core.Compiler.Pair) = Core.Compiler.iterate(p)
 Base.iterate(p::Core.Compiler.Pair, st) = Core.Compiler.iterate(p, st)
 end
