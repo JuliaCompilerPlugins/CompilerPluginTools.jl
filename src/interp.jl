@@ -47,7 +47,7 @@ else
     end
 end
 
-function compat_optimize(interp::JuliaLikeInterpreter, opt::OptimizationState, params::OptimizationParams, result::InferenceResult)
+function compat_optimize(interp::JuliaLikeInterpreter, opt::OptimizationState, params::OptimizationParams, result)
     @static if VERSION < v"1.8-"
         nargs = Int(opt.nargs) - 1
         ir = Core.Compiler.run_passes(opt.src, nargs, opt)
