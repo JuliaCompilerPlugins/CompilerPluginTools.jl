@@ -15,7 +15,7 @@ function default_julia_pass(ir::IRCode, sv::OptimizationState)
     if VERSION < v"1.9-"
         ir = ssa_inlining_pass!(ir, ir.linetable, sv.inlining, sv.src.propagate_inbounds)
     else
-        ir = ssa_inlining_pass!(ir, sv.inlining, ci.propagate_inbounds)
+        ir = ssa_inlining_pass!(ir, sv.inlining, sv.src.propagate_inbounds)
     end
 
     ir = compact!(ir)
