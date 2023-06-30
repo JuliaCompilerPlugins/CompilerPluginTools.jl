@@ -16,7 +16,6 @@ export
     SSAValue,
     Const,
     PartialStruct,
-    Slot,
     GotoIfNot,
     GotoNode,
     SlotNumber,
@@ -71,7 +70,6 @@ using Core:
     SSAValue,
     Const,
     PartialStruct,
-    Slot,
     GotoIfNot,
     GotoNode,
     SlotNumber,
@@ -134,6 +132,11 @@ using Core.Compiler:
     verify_ir,
     retrieve_code_info,
     slot2reg
+
+@static if VERSION < v"1.10-"
+    export Slot
+    using Core: Slot
+end
 
 include("compat.jl")
 include("utils.jl")
