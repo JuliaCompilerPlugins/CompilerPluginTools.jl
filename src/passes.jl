@@ -12,7 +12,12 @@ The default julia optimization pass.
 """
 function default_julia_pass(ir::IRCode, sv::OptimizationState)
     ir = compact!(ir)
-    ir = ssa_inlining_pass!(ir, ir.linetable, sv.inlining, sv.src.propagate_inbounds)
+    if VERSION < v"1.9-"
+        ir = ssa_inlining_pass!(ir, ir.linetable, sv.inlining, sv.src.propagate_inbounds)
+    else
+        ir = ssa_inlining_pass!(ir, sv.inlining, sv.src.propagate_inbounds)
+    end
+
     ir = compact!(ir)
 
     @static if VERSION < v"1.8-"

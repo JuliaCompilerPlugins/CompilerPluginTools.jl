@@ -32,5 +32,5 @@ dummy(x) = 2x
     ic = IncrementalCompact(ir)
     (_, idx), stmt = first(ic)
     @test idx == 1
-    ic[1]
+    ic[SSAValue(1)]
 end
