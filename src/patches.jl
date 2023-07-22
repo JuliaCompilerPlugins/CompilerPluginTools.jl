@@ -82,10 +82,12 @@ end
 end
 
 # move this to Base?
-Base.iterate(ic::Core.Compiler.IncrementalCompact) = Core.Compiler.iterate(ic)
-Base.iterate(ic::Core.Compiler.IncrementalCompact, st) = Core.Compiler.iterate(ic, st)
-Base.getindex(ic::Core.Compiler.IncrementalCompact, idx) = Core.Compiler.getindex(ic, idx)
-Base.setindex!(ic::Core.Compiler.IncrementalCompact, v, idx) = Core.Compiler.setindex!(ic, v, idx)
+@static if VERSION < v"1.9-"
+    Base.iterate(ic::Core.Compiler.IncrementalCompact) = Core.Compiler.iterate(ic)
+    Base.iterate(ic::Core.Compiler.IncrementalCompact, st) = Core.Compiler.iterate(ic, st)
+    Base.getindex(ic::Core.Compiler.IncrementalCompact, idx) = Core.Compiler.getindex(ic, idx)
+    Base.setindex!(ic::Core.Compiler.IncrementalCompact, v, idx) = Core.Compiler.setindex!(ic, v, idx)
+end
 
 
 Base.getindex(ic::Core.Compiler.Instruction, idx) = Core.Compiler.getindex(ic, idx)
